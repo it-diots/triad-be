@@ -1,17 +1,20 @@
 # CLAUDE.md - AI 어시스턴트 참고 문서
 
 ## 프로젝트 개요
+
 - **프로젝트명**: Triad (웹 개발 협업 툴)
 - **설명**: 피그마와 유사한 실시간 웹 협업 도구. 웹페이지 위에 오버레이로 커서 공유 및 코멘트 기능 제공
 - **개발자**: 김형주 (kim62210@gmail.com)
 - **주요 기술**: NestJS, TypeScript, Socket.io, PostgreSQL, TypeORM
+- **프로젝트 시작일**: 2025-09-08
 
 ## 프로젝트 구조
+
 ```
 triad-be/
 ├── src/
 │   ├── auth/          # 인증 관련 모듈
-│   ├── users/         # 사용자 관리 모듈  
+│   ├── users/         # 사용자 관리 모듈
 │   ├── collaboration/ # 실시간 협업 기능 (Socket.io)
 │   ├── comments/      # 코멘트 기능
 │   ├── projects/      # 프로젝트 관리
@@ -20,6 +23,7 @@ triad-be/
 ```
 
 ## 개발 환경
+
 - **Node.js**: v18+ 권장
 - **Package Manager**: npm
 - **Database**: PostgreSQL (Docker로 실행)
@@ -28,6 +32,7 @@ triad-be/
 ## 필수 확인 사항
 
 ### 개발 작업 시작 전 - 필수 체크리스트
+
 1. **rules/ 폴더 모든 문서 검토**
    - `rules/GIT_CONVENTION.md` - Git 커밋 규칙 확인
    - `rules/DEVELOPMENT_CONVENTION.md` - 개발 컨벤션 확인
@@ -36,6 +41,7 @@ triad-be/
    - `rules/PROJECT_SETUP_PLAN.md` - 프로젝트 설정 계획 확인
 
 ### 코드 작성 전
+
 1. 기존 코드 패턴 확인 필수
 2. 관련 모듈의 기존 구조 파악
 3. TypeScript 타입 명시적 정의 (any 타입 절대 금지)
@@ -43,6 +49,7 @@ triad-be/
 5. 모든 주석은 한글로 작성
 
 ### 코드 작성 후 - 필수 검증 프로세스
+
 1. **린트 검사**: `npm run lint` - 에러가 있으면 반드시 수정
 2. **타입 체크**: `npm run typecheck` - TypeScript 타입 에러 확인
 3. **빌드 실행**: `npm run build` - 빌드 성공 여부 확인
@@ -53,13 +60,21 @@ triad-be/
 
 ## 코딩 컨벤션
 
+### 문서 작성 규칙
+
+- **이모지 사용 절대 금지** - 모든 문서에서 이모지 사용 안 함
+- 간결하고 명확한 표현 사용
+- 불필요한 장식적 요소 제거
+
 ### 파일 네이밍
+
 - 파일명: `kebab-case.ts`
 - 클래스: `PascalCase`
 - 함수/변수: `camelCase`
 - 상수: `UPPER_SNAKE_CASE`
 
 ### NestJS 모듈 구조
+
 ```typescript
 // 모든 모듈은 다음 구조를 따름
 module-name/
@@ -74,6 +89,7 @@ module-name/
 ```
 
 ### TypeScript 규칙
+
 - **`any` 타입 절대 사용 금지** - 모든 타입 명시적 정의 필수
 - 모든 함수에 반환 타입 명시
 - `tsconfig.json`의 `strict: true` 항상 유지
@@ -81,11 +97,13 @@ module-name/
 - `Record<string, unknown>` 사용 권장 (any 대신)
 
 ### 주석 작성 규칙
+
 - **모든 주석은 한글로 작성**
 - 복잡한 비즈니스 로직에 설명 추가
 - TODO 주석: `// TODO: 작업 내용`
 - FIXME 주석: `// FIXME: 수정 필요 사항`
 - 예시:
+
 ```typescript
 // 사용자 인증 토큰 검증
 const validateToken = (token: string): boolean => {
@@ -99,15 +117,17 @@ const validateToken = (token: string): boolean => {
 ```
 
 ### Import 순서 (ESLint 자동 정렬)
+
 1. Node.js 내장 모듈 (fs, path 등)
-2. 외부 라이브러리 (@nestjs/*, express, passport 등)
-3. 내부 공통 모듈 (src/common/*)
-4. 같은 모듈 스코프 (../*, ./*)
+2. 외부 라이브러리 (@nestjs/\*, express, passport 등)
+3. 내부 공통 모듈 (src/common/\*)
+4. 같은 모듈 스코프 (../_, ./_)
 5. 타입 정의
 
 **각 그룹 사이에 빈 줄 추가**
 
 예시:
+
 ```typescript
 import { readFile } from 'fs/promises';
 
@@ -125,6 +145,7 @@ import type { JwtPayload } from './types';
 ## Git 워크플로우
 
 ### 브랜치 전략
+
 - `main`: 프로덕션 브랜치
 - `develop`: 개발 통합 브랜치
 - `feature/*`: 기능 개발
@@ -132,6 +153,7 @@ import type { JwtPayload } from './types';
 - `hotfix/*`: 긴급 수정
 
 ### 커밋 메시지 형식 (rules/GIT_CONVENTION.md 준수)
+
 ```
 <type>: <subject>
 
@@ -143,6 +165,7 @@ import type { JwtPayload } from './types';
 **⚠️ 중요**: scope는 사용하지 않음 (괄호 없음)
 
 **Types** (영어 유지 필수):
+
 - `feat`: 새로운 기능
 - `fix`: 버그 수정
 - `refactor`: 리팩토링
@@ -156,6 +179,7 @@ import type { JwtPayload } from './types';
 - `revert`: 커밋 되돌리기
 
 **올바른 예시**:
+
 ```bash
 feat: JWT 인증 시스템 구현
 
@@ -167,6 +191,7 @@ Closes #123
 ```
 
 **잘못된 예시**:
+
 ```bash
 feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 기능: JWT 인증 시스템 구현         # ❌ 한글 type 사용 금지
@@ -175,6 +200,7 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 ## API 설계 원칙
 
 ### RESTful 엔드포인트
+
 - GET `/resources` - 목록 조회
 - GET `/resources/:id` - 단일 조회
 - POST `/resources` - 생성
@@ -183,6 +209,7 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 - DELETE `/resources/:id` - 삭제
 
 ### 응답 형식
+
 ```typescript
 // 성공 응답
 {
@@ -210,6 +237,7 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 ```
 
 ### 상태 코드
+
 - 200: 성공
 - 201: 생성 성공
 - 400: 잘못된 요청
@@ -221,44 +249,49 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 ## Socket.io 이벤트 규칙
 
 ### 이벤트 네이밍
+
 - 클라이언트 → 서버: `kebab-case`
 - 서버 → 클라이언트: `kebab-case`
 - 에러 이벤트: `error:*`
 
 ### 주요 이벤트
+
 ```typescript
 // 연결 관련
-'connection'
-'disconnect'
+'connection';
+'disconnect';
 
 // 프로젝트 관련
-'join-project'
-'leave-project'
+'join-project';
+'leave-project';
 
 // 협업 기능
-'cursor-move'
-'cursor-update'
-'comment-create'
-'comment-created'
+'cursor-move';
+'cursor-update';
+'comment-create';
+'comment-created';
 
 // 사용자 상태
-'user-joined'
-'user-left'
+'user-joined';
+'user-left';
 ```
 
 ## 데이터베이스 규칙
 
 ### 엔티티 설계
+
 - 모든 엔티티에 `id` (UUID), `createdAt`, `updatedAt` 포함
 - Soft delete 사용 시 `deletedAt` 추가
 - 관계 설정 시 명확한 cascade 옵션 정의
 
 ### 네이밍 컨벤션
+
 - 테이블명: 복수형 snake_case (예: `users`, `project_members`)
 - 컬럼명: snake_case
 - 인덱스명: `idx_테이블명_컬럼명`
 
 ## 보안 체크리스트
+
 - [ ] 환경 변수로 민감 정보 관리
 - [ ] SQL Injection 방지 (파라미터 바인딩)
 - [ ] XSS 방지 (입력값 검증 및 이스케이프)
@@ -268,6 +301,7 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 - [ ] 입력값 검증 (class-validator)
 
 ## 성능 고려사항
+
 - 필요한 데이터만 조회 (select 옵션 활용)
 - 관계 로딩 최적화 (lazy/eager loading 적절히 사용)
 - 캐싱 전략 구현 (Redis 추후 도입 예정)
@@ -275,20 +309,24 @@ feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
 - 인덱스 적절히 활용
 
 ## 테스트 전략
+
 - Unit Test: 서비스 로직 중심
 - Integration Test: API 엔드포인트
 - E2E Test: 주요 사용자 시나리오
 
 ### 테스트 파일 위치
+
 - `*.spec.ts`: 유닛 테스트
 - `*.e2e-spec.ts`: E2E 테스트
 
 ## 문서화
+
 - API 문서: Swagger 자동 생성 (`/api/docs`)
 - 코드 주석: 복잡한 로직에만 작성
 - README 업데이트: 주요 변경사항 발생 시
 
 ## 자주 사용하는 명령어
+
 ```bash
 # 개발 서버 실행
 npm run start:dev
@@ -332,6 +370,7 @@ npm run pre-commit
 ```
 
 ## 주의사항
+
 1. **절대 커밋하지 말 것**:
    - `.env` 파일
    - 개인 인증 정보
@@ -352,6 +391,7 @@ npm run pre-commit
    - [ ] 데이터베이스 마이그레이션
 
 ## 참고 문서
+
 - [PROJECT_SETUP_PLAN.md](./rules/PROJECT_SETUP_PLAN.md) - 프로젝트 설정 계획
 - [DEVELOPMENT_CONVENTION.md](./rules/DEVELOPMENT_CONVENTION.md) - 개발 컨벤션
 - [GIT_CONVENTION.md](./rules/GIT_CONVENTION.md) - Git 사용 규칙
@@ -359,6 +399,7 @@ npm run pre-commit
 - [ESLINT_CONVENTION.md](./rules/ESLINT_CONVENTION.md) - ESLint 설정
 
 ## 개발자 정보
+
 - **이름**: 김형주
 - **이메일**: kim62210@gmail.com (개인)
 - **회사 이메일**: kim62210@ship-da.com

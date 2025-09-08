@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 export enum MetricType {
   PROJECT_COUNT = 'PROJECT_COUNT',
@@ -21,18 +15,18 @@ export enum MetricType {
 }
 
 export enum AggregationType {
-  SUM = 'SUM',           // 누적 합계 (API 호출 수, 댓글 수 등)
-  MAX = 'MAX',           // 최대값 (프로젝트 수, 협업자 수 등)
-  AVERAGE = 'AVERAGE',   // 평균 (세션 시간 등)
-  COUNT = 'COUNT',       // 개수 (로그인 횟수 등)
+  SUM = 'SUM', // 누적 합계 (API 호출 수, 댓글 수 등)
+  MAX = 'MAX', // 최대값 (프로젝트 수, 협업자 수 등)
+  AVERAGE = 'AVERAGE', // 평균 (세션 시간 등)
+  COUNT = 'COUNT', // 개수 (로그인 횟수 등)
 }
 
 /**
  * 사용량 기록 엔티티
- * 
+ *
  * 사용자별 각종 메트릭의 사용량을 추적합니다.
  * 일별 단위로 집계되며, 플랜 제한 확인에 사용됩니다.
- * 
+ *
  * @example
  * ```typescript
  * const usage = new UsageRecord();
@@ -95,11 +89,11 @@ export class UsageRecord {
    */
   @Column('jsonb', { nullable: true })
   metadata: {
-    source?: string;        // 사용량 발생 소스
-    projectId?: string;     // 관련 프로젝트 ID
-    sessionId?: string;     // 세션 ID
-    ipAddress?: string;     // IP 주소
-    userAgent?: string;     // User Agent
+    source?: string; // 사용량 발생 소스
+    projectId?: string; // 관련 프로젝트 ID
+    sessionId?: string; // 세션 ID
+    ipAddress?: string; // IP 주소
+    userAgent?: string; // User Agent
     additionalInfo?: Record<string, any>;
   };
 
@@ -137,12 +131,12 @@ export class UsageRecord {
   static getDateRange(startDate: Date, endDate: Date): string[] {
     const dates: string[] = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       dates.push(this.getDateString(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     return dates;
   }
 
@@ -169,9 +163,7 @@ export class UsageRecord {
    */
   updateAverage(newValue: number, count: number): void {
     if (this.aggregationType === AggregationType.AVERAGE) {
-      this.metricValue = Math.round(
-        (this.metricValue * (count - 1) + newValue) / count
-      );
+      this.metricValue = Math.round((this.metricValue * (count - 1) + newValue) / count);
     }
   }
 
@@ -182,7 +174,7 @@ export class UsageRecord {
     if (!this.metadata) {
       this.metadata = {};
     }
-    
+
     if (key === 'additionalInfo') {
       this.metadata.additionalInfo = { ...this.metadata.additionalInfo, ...value };
     } else {
@@ -197,7 +189,7 @@ export class UsageRecord {
     const recordDate = new Date(this.date);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
-    
+
     return recordDate >= weekStart && recordDate <= weekEnd;
   }
 
@@ -223,26 +215,26 @@ export class UsageRecord {
   static calculateCurrentPeriodUsage(
     records: UsageRecord[],
     metricType: MetricType,
-    periodType: 'daily' | 'weekly' | 'monthly' = 'daily'
+    periodType: 'daily' | 'weekly' | 'monthly' = 'daily',
   ): number {
-    const relevantRecords = records.filter(r => r.metricType === metricType);
-    
+    const relevantRecords = records.filter((r) => r.metricType === metricType);
+
     if (relevantRecords.length === 0) return 0;
-    
+
     const firstRecord = relevantRecords[0];
-    
+
     switch (firstRecord.aggregationType) {
       case AggregationType.SUM:
       case AggregationType.COUNT:
         return relevantRecords.reduce((sum, record) => sum + record.metricValue, 0);
-        
+
       case AggregationType.MAX:
-        return Math.max(...relevantRecords.map(r => r.metricValue));
-        
+        return Math.max(...relevantRecords.map((r) => r.metricValue));
+
       case AggregationType.AVERAGE:
         const total = relevantRecords.reduce((sum, record) => sum + record.metricValue, 0);
         return Math.round(total / relevantRecords.length);
-        
+
       default:
         return relevantRecords[relevantRecords.length - 1]?.metricValue || 0;
     }
@@ -265,7 +257,7 @@ export class UsageRecord {
       [MetricType.WEBHOOK_CALLS]: AggregationType.SUM,
       [MetricType.EXPORT_REQUESTS]: AggregationType.SUM,
     };
-    
+
     return aggregationMap[metricType] || AggregationType.SUM;
   }
 
@@ -277,7 +269,7 @@ export class UsageRecord {
     metricType: MetricType,
     value: number,
     date: string = UsageRecord.getTodayDateString(),
-    metadata?: UsageRecord['metadata']
+    metadata?: UsageRecord['metadata'],
   ): UsageRecord {
     const record = new UsageRecord();
     record.userId = userId;
@@ -286,7 +278,7 @@ export class UsageRecord {
     record.date = date;
     record.aggregationType = this.getDefaultAggregationType(metricType);
     record.metadata = metadata;
-    
+
     return record;
   }
 }

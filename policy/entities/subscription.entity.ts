@@ -1,12 +1,9 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  OneToMany,
 } from 'typeorm';
 
 export enum SubscriptionStatus {
@@ -33,10 +30,10 @@ export enum PaymentMethod {
 
 /**
  * 사용자 구독 엔티티
- * 
+ *
  * 사용자의 플랜 구독 정보를 관리합니다.
  * Stripe 등의 외부 결제 서비스와 연동됩니다.
- * 
+ *
  * @example
  * ```typescript
  * const subscription = new Subscription();
@@ -187,10 +184,7 @@ export class Subscription {
    * 구독이 활성 상태인지 확인
    */
   isActive(): boolean {
-    return (
-      this.status === SubscriptionStatus.ACTIVE ||
-      this.status === SubscriptionStatus.TRIAL
-    );
+    return this.status === SubscriptionStatus.ACTIVE || this.status === SubscriptionStatus.TRIAL;
   }
 
   /**
@@ -198,9 +192,7 @@ export class Subscription {
    */
   isTrial(): boolean {
     return (
-      this.status === SubscriptionStatus.TRIAL &&
-      this.trialEndsAt &&
-      this.trialEndsAt > new Date()
+      this.status === SubscriptionStatus.TRIAL && this.trialEndsAt && this.trialEndsAt > new Date()
     );
   }
 
@@ -238,7 +230,7 @@ export class Subscription {
    */
   getRemainingDays(): number {
     if (!this.isActive()) return 0;
-    
+
     const now = new Date();
     const diffTime = this.endsAt.getTime() - now.getTime();
     return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
@@ -249,7 +241,7 @@ export class Subscription {
    */
   getDaysUntilNextBilling(): number {
     if (!this.nextBillingDate) return 0;
-    
+
     const now = new Date();
     const diffTime = this.nextBillingDate.getTime() - now.getTime();
     return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
@@ -262,11 +254,11 @@ export class Subscription {
     this.status = SubscriptionStatus.CANCELLED;
     this.cancelledAt = new Date();
     this.autoRenew = false;
-    
+
     if (reason) {
       this.cancellationReason = reason;
     }
-    
+
     if (immediately) {
       this.endsAt = new Date();
     }
@@ -305,12 +297,12 @@ export class Subscription {
   convertTrialToActive(): void {
     if (this.status === SubscriptionStatus.TRIAL) {
       this.status = SubscriptionStatus.ACTIVE;
-      
+
       // 결제 주기에 따라 종료일 설정
       const monthsToAdd = this.billingInterval === BillingInterval.YEARLY ? 12 : 1;
       this.endsAt = new Date();
       this.endsAt.setMonth(this.endsAt.getMonth() + monthsToAdd);
-      
+
       // 다음 결제일 설정
       this.nextBillingDate = new Date(this.endsAt);
     }
@@ -321,11 +313,11 @@ export class Subscription {
    */
   renew(): void {
     if (!this.isActive()) return;
-    
+
     const monthsToAdd = this.billingInterval === BillingInterval.YEARLY ? 12 : 1;
     this.endsAt = new Date(this.endsAt);
     this.endsAt.setMonth(this.endsAt.getMonth() + monthsToAdd);
-    
+
     this.nextBillingDate = new Date(this.endsAt);
   }
 

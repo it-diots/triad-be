@@ -1,10 +1,9 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
-  OneToMany,
 } from 'typeorm';
 
 export enum PlanType {
@@ -42,10 +41,10 @@ export interface PlanTierLimits {
 
 /**
  * 요금제 티어 엔티티
- * 
+ *
  * 각 요금제의 기능과 제한사항을 정의합니다.
  * JSONB 컬럼을 사용하여 유연한 설정이 가능합니다.
- * 
+ *
  * @example
  * ```typescript
  * const freePlan = new PlanTier();
@@ -130,7 +129,7 @@ export class PlanTier {
   stripePriceIdMonthly: string;
 
   /**
-   * Stripe Price ID (연간) 
+   * Stripe Price ID (연간)
    */
   @Column({ nullable: true })
   stripePriceIdYearly: string;
