@@ -1,24 +1,70 @@
-# Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
-
-# Logs
-logs
-*.log
+# Dependencies
+node_modules/
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+pnpm-debug.log*
+.pnpm-store/
 
-# dotenv environment variable files
+# Production
+dist/
+build/
+
+# Environment
 .env
+.env.local
 .env.development
 .env.test
 .env.production
+.env.*.local
+!.env.example
 
-# temp directory
-.temp
-.tmp
+# IDE
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs
+logs/
+*.log
+
+# Temporary
+tmp/
+temp/
+*.tmp
+.temp/
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# TypeScript
+*.tsbuildinfo
+.tscache/
+
+# Cache
+.eslintcache
+.cache/
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# Uploads
+uploads/
+public/uploads/
+
+# Miscellaneous
+*.bak
+*.backup
+*.old
+.history/
