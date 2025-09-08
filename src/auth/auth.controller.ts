@@ -1,24 +1,26 @@
 import {
-  Controller,
-  Post,
   Body,
-  UseGuards,
-  Request,
+  Controller,
+  Get,
   HttpCode,
   HttpStatus,
-  Get,
+  Post,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { User } from '../users/entities/user.entity';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterDto } from './dto/register.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
-import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
-import { Public } from './decorators/public.decorator';
-import { CurrentUser } from './decorators/current-user.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { LocalAuthGuard } from './guards/local-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -41,7 +43,10 @@ export class AuthController {
   @ApiOperation({ summary: '로그인' })
   @ApiResponse({ status: 200, type: TokenResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto, @Request() req): Promise<TokenResponseDto> {
+  async login(
+    @Body() _loginDto: LoginDto,
+    @Request() req: Express.Request & { user: User },
+  ): Promise<TokenResponseDto> {
     return this.authService.generateTokens(req.user);
   }
 
@@ -51,7 +56,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '로그아웃' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(@CurrentUser() user: any): Promise<void> {
+  async logout(@CurrentUser() user: User): Promise<void> {
     return this.authService.logout(user.id);
   }
 
@@ -64,7 +69,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refresh(
     @Body() refreshTokenDto: RefreshTokenDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: User,
   ): Promise<TokenResponseDto> {
     return this.authService.refreshTokens(user.id, refreshTokenDto.refreshToken);
   }
@@ -74,7 +79,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '현재 사용자 정보' })
   @ApiResponse({ status: 200, description: 'User profile' })
-  async getProfile(@CurrentUser() user: any) {
+  async getProfile(@CurrentUser() user: User): Promise<Partial<User>> {
     const { password, refreshToken, ...result } = user;
     return result;
   }

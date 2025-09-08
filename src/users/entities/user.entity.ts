@@ -1,15 +1,14 @@
+import * as bcrypt from 'bcrypt';
 import {
-  Entity,
-  PrimaryGeneratedColumn,
+  BeforeInsert,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   DeleteDateColumn,
-  BeforeInsert,
+  Entity,
   Index,
-  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 
 export enum UserRole {
   USER = 'USER',

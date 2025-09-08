@@ -10,12 +10,10 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
-import { WsJwtGuard } from './guards/ws-jwt.guard';
-import { CurrentWsUser } from './decorators/ws-user.decorator';
 
 interface CursorPosition {
   x: number;
@@ -34,9 +32,25 @@ interface Comment {
   timestamp: Date;
 }
 
+interface UserInfo {
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+}
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+  username: string;
+  iat?: number;
+  exp?: number;
+}
+
 interface ProjectRoom {
   projectId: string;
-  users: Map<string, any>;
+  users: Map<string, UserInfo>;
   cursors: Map<string, CursorPosition>;
   comments: Comment[];
 }
@@ -57,7 +71,7 @@ export class CollaborationGateway
   private logger: Logger = new Logger('CollaborationGateway');
   private projectRooms: Map<string, ProjectRoom> = new Map();
   private userSocketMap: Map<string, string> = new Map(); // userId -> socketId
-  private socketUserMap: Map<string, any> = new Map(); // socketId -> user
+  private socketUserMap: Map<string, UserInfo> = new Map(); // socketId -> user 정보
 
   constructor(
     private jwtService: JwtService,
@@ -65,7 +79,7 @@ export class CollaborationGateway
     private usersService: UsersService,
   ) {}
 
-  afterInit(server: Server): void {
+  afterInit(_server: Server): void {
     this.logger.log('WebSocket Gateway initialized');
   }
 
@@ -96,7 +110,7 @@ export class CollaborationGateway
         username: user.username,
       });
     } catch (error) {
-      this.logger.error(`Connection error: ${error.message}`);
+      this.logger.error(`Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       client.disconnect();
     }
   }
@@ -149,6 +163,9 @@ export class CollaborationGateway
     }
 
     const room = this.projectRooms.get(projectId);
+    if (!room) {
+      throw new WsException('Failed to create or get project room');
+    }
     
     // Join the socket room
     await client.join(projectId);
@@ -306,7 +323,7 @@ export class CollaborationGateway
   @SubscribeMessage('broadcast-message')
   handleBroadcastMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { projectId: string; type: string; payload: any },
+    @MessageBody() data: { projectId: string; type: string; payload: Record<string, unknown> },
   ): void {
     const user = this.socketUserMap.get(client.id);
     if (!user) return;
@@ -337,7 +354,7 @@ export class CollaborationGateway
     return token || null;
   }
 
-  private async verifyToken(token: string): Promise<any> {
+  private async verifyToken(token: string): Promise<JwtPayload> {
     try {
       return await this.jwtService.verifyAsync(token, {
         secret: this.configService.get<string>('jwt.secret'),

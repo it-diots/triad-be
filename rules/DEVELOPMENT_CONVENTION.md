@@ -3,6 +3,72 @@
 ## 개요
 NestJS TypeScript 프로젝트의 일관된 개발 패턴과 코드 작성 규칙을 정의합니다.
 
+## ⚠️ 핵심 원칙
+
+### TypeScript 엄격 모드
+- **`any` 타입 절대 사용 금지** - 모든 타입은 명시적으로 정의
+- `tsconfig.json`의 `strict: true` 항상 유지
+- 타입 추론이 불가능한 경우 명시적 타입 선언 필수
+- `unknown` 또는 `Record<string, unknown>` 사용 권장
+
+### 주석 작성 규칙
+- **모든 주석은 한글로 작성**
+- 복잡한 비즈니스 로직에 설명 추가
+- TODO/FIXME 주석 형식 준수
+```typescript
+// ✅ 올바른 예시
+// 사용자 인증 토큰 검증
+const validateToken = (token: string): boolean => {
+  // JWT 토큰 형식 확인
+  return token.startsWith('Bearer ');
+};
+
+// ❌ 잘못된 예시
+// Validate user authentication token (영어 사용 금지)
+const validateToken = (token: any): any => { // any 타입 사용 금지
+  return token.startsWith('Bearer ');
+};
+```
+
+### 코드 품질 검증 프로세스
+작업 완료 후 반드시 다음 명령어를 순차적으로 실행하여 에러 확인:
+
+1. **린트 검사**: `npm run lint`
+2. **타입 체크**: `npm run typecheck`
+3. **빌드 실행**: `npm run build`
+4. **테스트 실행**: `npm test`
+5. **개발 서버 실행**: `npm run start:dev`
+
+**하나라도 실패 시 반드시 수정 후 재검증**
+
+## Import 구조 및 순서
+
+### Import 정렬 규칙 (ESLint 자동 정렬)
+```typescript
+// 1. Node.js 내장 모듈
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+
+// 2. 외부 라이브러리
+import { Injectable, HttpException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+
+// 3. 내부 공통 모듈 (절대 경로)
+import { CommonService } from '@/common/common.service';
+import { DatabaseService } from '@/database/database.service';
+
+// 4. 같은 모듈 스코프 (상대 경로)
+import { AuthService } from '../auth.service';
+import { UserEntity } from './entities/user.entity';
+
+// 5. 타입 정의
+import type { JwtPayload } from './types';
+import type { UserProfile } from './interfaces';
+```
+
+**각 그룹 사이에 빈 줄 추가 필수**
+
 ## 프로젝트 구조
 
 ### 모듈 구조

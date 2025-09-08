@@ -6,13 +6,19 @@ import {
   Res,
   HttpStatus,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GitHubAuthGuard } from './guards/github-auth.guard';
 import { Public } from './decorators/public.decorator';
-import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
+import { User } from '../users/entities/user.entity';
+
+interface AuthRequest extends Request {
+  user: User;
+}
 
 @ApiTags('OAuth')
 @Controller('auth')
@@ -35,7 +41,7 @@ export class OAuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiExcludeEndpoint()
-  async googleAuthCallback(@Req() req: any, @Res() res: Response): Promise<void> {
+  async googleAuthCallback(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const tokens = await this.authService.generateTokens(req.user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
     
@@ -61,7 +67,7 @@ export class OAuthController {
   @Get('github/callback')
   @UseGuards(GitHubAuthGuard)
   @ApiExcludeEndpoint()
-  async githubAuthCallback(@Req() req: any, @Res() res: Response): Promise<void> {
+  async githubAuthCallback(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const tokens = await this.authService.generateTokens(req.user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
     

@@ -1,9 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, AuthProvider } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { AuthProvider, User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -14,10 +14,7 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findOne({
-      where: [
-        { email: createUserDto.email },
-        { username: createUserDto.username },
-      ],
+      where: [{ email: createUserDto.email }, { username: createUserDto.username }],
     });
 
     if (existingUser) {
@@ -41,10 +38,7 @@ export class UsersService {
     avatar?: string;
     providerData?: Record<string, any>;
   }): Promise<User> {
-    const existingUser = await this.findByProviderAndId(
-      profile.provider,
-      profile.providerId,
-    );
+    const existingUser = await this.findByProviderAndId(profile.provider, profile.providerId);
 
     if (existingUser) {
       return existingUser;
@@ -60,8 +54,7 @@ export class UsersService {
       return userByEmail;
     }
 
-    const username = profile.username || 
-      `${profile.provider.toLowerCase()}_${profile.providerId}`;
+    const username = profile.username || `${profile.provider.toLowerCase()}_${profile.providerId}`;
 
     const user = this.userRepository.create({
       email: profile.email,
@@ -111,10 +104,7 @@ export class UsersService {
     return this.userRepository.findOne({ where: { username } });
   }
 
-  async findByProviderAndId(
-    provider: AuthProvider,
-    providerId: string,
-  ): Promise<User | null> {
+  async findByProviderAndId(provider: AuthProvider, providerId: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { provider, providerId },
     });
@@ -135,14 +125,14 @@ export class UsersService {
   }
 
   async updateRefreshToken(id: string, refreshToken: string | null): Promise<void> {
-    await this.userRepository.update(id, { 
-      refreshToken: refreshToken || undefined 
+    await this.userRepository.update(id, {
+      refreshToken: refreshToken || undefined,
     });
   }
 
   async updateLastLogin(id: string): Promise<void> {
-    await this.userRepository.update(id, { 
-      lastLoginAt: new Date() 
+    await this.userRepository.update(id, {
+      lastLoginAt: new Date(),
     });
   }
 
@@ -153,7 +143,7 @@ export class UsersService {
 
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.findByEmail(email);
-    if (user && user.password && await user.validatePassword(password)) {
+    if (user && user.password && (await user.validatePassword(password))) {
       return user;
     }
     return null;

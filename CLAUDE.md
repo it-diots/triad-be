@@ -27,17 +27,29 @@ triad-be/
 
 ## 필수 확인 사항
 
+### 개발 작업 시작 전 - 필수 체크리스트
+1. **rules/ 폴더 모든 문서 검토**
+   - `rules/GIT_CONVENTION.md` - Git 커밋 규칙 확인
+   - `rules/DEVELOPMENT_CONVENTION.md` - 개발 컨벤션 확인
+   - `rules/ESLINT_CONVENTION.md` - ESLint 설정 확인
+   - `rules/CODE_REVIEW_GUIDELINES.md` - 코드 리뷰 가이드 확인
+   - `rules/PROJECT_SETUP_PLAN.md` - 프로젝트 설정 계획 확인
+
 ### 코드 작성 전
 1. 기존 코드 패턴 확인 필수
 2. 관련 모듈의 기존 구조 파악
-3. TypeScript 타입 명시적 정의
+3. TypeScript 타입 명시적 정의 (any 타입 절대 금지)
 4. 에러 처리 및 로깅 구현
+5. 모든 주석은 한글로 작성
 
-### 코드 작성 후
-1. **린트 검사**: `npm run lint`
-2. **타입 체크**: `npm run typecheck`
-3. **테스트 실행**: `npm test`
-4. **빌드 확인**: `npm run build`
+### 코드 작성 후 - 필수 검증 프로세스
+1. **린트 검사**: `npm run lint` - 에러가 있으면 반드시 수정
+2. **타입 체크**: `npm run typecheck` - TypeScript 타입 에러 확인
+3. **빌드 실행**: `npm run build` - 빌드 성공 여부 확인
+4. **테스트 실행**: `npm test` - 모든 테스트 통과 확인
+5. **개발 서버 실행**: `npm run start:dev` - 런타임 에러 확인
+
+**⚠️ 중요**: 위 5가지 검증 중 하나라도 실패하면 반드시 수정 후 다시 검증
 
 ## 코딩 컨벤션
 
@@ -62,17 +74,53 @@ module-name/
 ```
 
 ### TypeScript 규칙
-- `any` 타입 사용 금지
+- **`any` 타입 절대 사용 금지** - 모든 타입 명시적 정의 필수
 - 모든 함수에 반환 타입 명시
-- strict mode 적용
+- `tsconfig.json`의 `strict: true` 항상 유지
 - null/undefined 명시적 체크
+- `Record<string, unknown>` 사용 권장 (any 대신)
 
-### Import 순서
-1. Node.js 내장 모듈
-2. NestJS 모듈
-3. 외부 라이브러리
-4. 내부 모듈
+### 주석 작성 규칙
+- **모든 주석은 한글로 작성**
+- 복잡한 비즈니스 로직에 설명 추가
+- TODO 주석: `// TODO: 작업 내용`
+- FIXME 주석: `// FIXME: 수정 필요 사항`
+- 예시:
+```typescript
+// 사용자 인증 토큰 검증
+const validateToken = (token: string): boolean => {
+  // JWT 토큰 형식 확인
+  if (!token.startsWith('Bearer ')) {
+    return false;
+  }
+  // 토큰 만료 시간 검증
+  return !isTokenExpired(token);
+};
+```
+
+### Import 순서 (ESLint 자동 정렬)
+1. Node.js 내장 모듈 (fs, path 등)
+2. 외부 라이브러리 (@nestjs/*, express, passport 등)
+3. 내부 공통 모듈 (src/common/*)
+4. 같은 모듈 스코프 (../*, ./*)
 5. 타입 정의
+
+**각 그룹 사이에 빈 줄 추가**
+
+예시:
+```typescript
+import { readFile } from 'fs/promises';
+
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import { CommonService } from '@/common/common.service';
+
+import { AuthService } from '../auth.service';
+import { User } from './entities/user.entity';
+
+import type { JwtPayload } from './types';
+```
 
 ## Git 워크플로우
 
@@ -83,32 +131,45 @@ module-name/
 - `bugfix/*`: 버그 수정
 - `hotfix/*`: 긴급 수정
 
-### 커밋 메시지 형식
+### 커밋 메시지 형식 (rules/GIT_CONVENTION.md 준수)
 ```
-<type>(<scope>): <subject>
+<type>: <subject>
 
 <body>
 
 <footer>
 ```
 
-**Types**:
+**⚠️ 중요**: scope는 사용하지 않음 (괄호 없음)
+
+**Types** (영어 유지 필수):
 - `feat`: 새로운 기능
 - `fix`: 버그 수정
 - `refactor`: 리팩토링
 - `docs`: 문서 수정
 - `test`: 테스트 추가/수정
 - `chore`: 빌드, 설정 등
+- `style`: 코드 포맷팅
+- `perf`: 성능 개선
+- `ci`: CI 설정 수정
+- `build`: 빌드 시스템 수정
+- `revert`: 커밋 되돌리기
 
-**예시**:
+**올바른 예시**:
 ```bash
-feat(auth): JWT 인증 시스템 구현
+feat: JWT 인증 시스템 구현
 
 - Passport.js JWT 전략 구현
 - 액세스 토큰 및 리프레시 토큰 로직 추가
 - 토큰 검증 미들웨어 구현
 
 Closes #123
+```
+
+**잘못된 예시**:
+```bash
+feat(auth): JWT 인증 시스템 구현  # ❌ scope 사용 금지
+기능: JWT 인증 시스템 구현         # ❌ 한글 type 사용 금지
 ```
 
 ## API 설계 원칙
