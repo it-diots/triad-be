@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+
+# Production
+dist
+build
+
+# IDE
+.idea
+.vscode
+
+# Logs
+*.log
+
+# Testing
+coverage
+.nyc_output
+
+# Cache
+.eslintcache
+.cache
+
+# Generated files
+*.generated.ts
+*.generated.js

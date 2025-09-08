@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-tslint-plugin",
+    "christian-kohler.path-intellisense",
+    "mikestead.dotenv",
+    "prisma.prisma",
+    "humao.rest-client",
+    "rangav.vscode-thunder-client"
+  ]
+}
