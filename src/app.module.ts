@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { CollaborationModule } from './collaboration/collaboration.module';
 
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -33,12 +36,10 @@ import { validationSchema } from './config/validation.schema';
       inject: [ConfigService],
     }),
 
-    // Feature Modules will be added here
-    // AuthModule,
-    // UsersModule,
-    // CollaborationModule,
-    // CommentsModule,
-    // ProjectsModule,
+    // Feature Modules
+    UsersModule,
+    AuthModule,
+    CollaborationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
