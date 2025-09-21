@@ -80,7 +80,7 @@ export class User {
   providerId?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  providerData?: Record<string, any>;
+  providerData?: Record<string, unknown>;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   refreshToken?: string;
@@ -108,9 +108,9 @@ export class User {
     }
   }
 
-  async validatePassword(password: string): Promise<boolean> {
+  validatePassword(password: string): Promise<boolean> {
     if (!this.password) {
-      return false;
+      return Promise.resolve(false);
     }
     return bcrypt.compare(password, this.password);
   }

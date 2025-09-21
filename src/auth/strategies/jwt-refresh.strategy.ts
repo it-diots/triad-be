@@ -1,12 +1,12 @@
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 
-import { UsersService } from '../../users/users.service';
-import { User } from '../../users/entities/user.entity';
 import { JwtPayload } from './jwt.strategy';
+import { User } from '../../users/entities/user.entity';
+import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -23,13 +23,13 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: JwtPayload): Promise<User> {
-    const refreshToken = req.body.refreshToken;
+    const refreshToken = (req.body as { refreshToken: string }).refreshToken;
     const user = await this.usersService.findOne(payload.sub);
-    
+
     if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    
+
     return user;
   }
 }

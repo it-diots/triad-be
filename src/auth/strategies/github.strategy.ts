@@ -1,10 +1,10 @@
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, Profile } from 'passport-github2';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy, Profile } from 'passport-github2';
 
-import { UsersService } from '../../users/users.service';
 import { AuthProvider, User } from '../../users/entities/user.entity';
+import { UsersService } from '../../users/users.service';
 
 @Injectable()
 export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
@@ -15,7 +15,10 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
     super({
       clientID: configService.get<string>('GITHUB_CLIENT_ID') || '',
       clientSecret: configService.get<string>('GITHUB_CLIENT_SECRET') || '',
-      callbackURL: configService.get<string>('GITHUB_CALLBACK_URL', 'http://localhost:3000/auth/github/callback'),
+      callbackURL: configService.get<string>(
+        'GITHUB_CALLBACK_URL',
+        'http://localhost:3000/auth/github/callback',
+      ),
       scope: ['user:email'],
     });
   }
@@ -24,10 +27,10 @@ export class GitHubStrategy extends PassportStrategy(Strategy, 'github') {
     accessToken: string,
     refreshToken: string,
     profile: Profile,
-    done: Function,
+    done: (error: Error | null, user?: User) => void,
   ): Promise<User> {
     const { id, username, displayName, photos, emails } = profile;
-    
+
     const userProfile = {
       email: emails?.[0]?.value || '',
       provider: AuthProvider.GITHUB,

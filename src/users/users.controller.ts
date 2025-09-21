@@ -10,12 +10,13 @@ import {
   ClassSerializerInterceptor,
   UseInterceptors,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
+import { UsersService } from './users.service';
 
 @ApiTags('Users')
 @Controller('users')
@@ -37,7 +38,7 @@ export class UsersController {
   @ApiResponse({ status: 200, type: [UserResponseDto] })
   async findAll(): Promise<UserResponseDto[]> {
     const users = await this.usersService.findAll();
-    return users.map(user => this.transformToDto(user));
+    return users.map((user) => this.transformToDto(user));
   }
 
   @Get(':id')
@@ -65,7 +66,7 @@ export class UsersController {
   @ApiOperation({ summary: '사용자 삭제' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.usersService.remove(id);
   }
 

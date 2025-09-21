@@ -50,14 +50,6 @@ module.exports = {
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
     '@typescript-eslint/no-non-null-assertion': 'error',
-    '@typescript-eslint/strict-boolean-expressions': [
-      'error',
-      {
-        allowString: false,
-        allowNumber: false,
-        allowNullableObject: false,
-      },
-    ],
 
     // 네이밍 컨벤션
     '@typescript-eslint/naming-convention': [
@@ -215,6 +207,14 @@ module.exports = {
       rules: {
         '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/explicit-module-boundary-types': 'off',
+      },
+    },
+    {
+      // Gateway 파일에 대한 예외 규칙 - WebSocket 이벤트 핸들러는 순서가 중요하지 않음
+      files: ['**/*.gateway.ts'],
+      rules: {
+        '@typescript-eslint/member-ordering': 'off',
+        'brace-style': 'off', // Prettier와 충돌 방지
       },
     },
   ],

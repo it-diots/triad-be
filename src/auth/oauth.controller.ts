@@ -1,19 +1,12 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Req,
-  Res,
-  HttpStatus,
-} from '@nestjs/common';
-import { Response, Request } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { Controller, Get, UseGuards, Req, Res, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { Response, Request } from 'express';
 
 import { AuthService } from './auth.service';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { GitHubAuthGuard } from './guards/github-auth.guard';
 import { Public } from './decorators/public.decorator';
+import { GitHubAuthGuard } from './guards/github-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { User } from '../users/entities/user.entity';
 
 interface AuthRequest extends Request {
@@ -44,13 +37,14 @@ export class OAuthController {
   async googleAuthCallback(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const tokens = await this.authService.generateTokens(req.user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    
+
     // 프론트엔드로 토큰과 함께 리다이렉트
-    const redirectUrl = `${frontendUrl}/auth/callback?` +
+    const redirectUrl =
+      `${frontendUrl}/auth/callback?` +
       `accessToken=${tokens.accessToken}&` +
       `refreshToken=${tokens.refreshToken}&` +
       `provider=google`;
-    
+
     res.redirect(HttpStatus.FOUND, redirectUrl);
   }
 
@@ -70,13 +64,14 @@ export class OAuthController {
   async githubAuthCallback(@Req() req: AuthRequest, @Res() res: Response): Promise<void> {
     const tokens = await this.authService.generateTokens(req.user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    
+
     // 프론트엔드로 토큰과 함께 리다이렉트
-    const redirectUrl = `${frontendUrl}/auth/callback?` +
+    const redirectUrl =
+      `${frontendUrl}/auth/callback?` +
       `accessToken=${tokens.accessToken}&` +
       `refreshToken=${tokens.refreshToken}&` +
       `provider=github`;
-    
+
     res.redirect(HttpStatus.FOUND, redirectUrl);
   }
 }

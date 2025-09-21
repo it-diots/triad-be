@@ -1,0 +1,63 @@
+# Vercel 배포에서 제외할 파일들
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Docker files
+docker-compose.yml
+Dockerfile*
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+test/
+**/*spec.ts
+**/*test.ts
+coverage/
+
+# Build artifacts
+dist/
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Local scripts
+scripts/setup-dev.sh
+scripts/local-*.sh
+
+# Config files for local development
+jest.config.js
+commitlint.config.js
+
+# Terraform and deployment configs (not needed for Vercel)
+terraform*/
+deployment/
+ecosystem.config.js

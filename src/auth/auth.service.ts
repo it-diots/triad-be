@@ -1,12 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+
+import { UserResponseDto } from '../users/dto/user-response.dto';
+import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
-import { User } from '../users/entities/user.entity';
-import { UserResponseDto } from '../users/dto/user-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +37,7 @@ export class AuthService {
 
   async refreshTokens(userId: string, refreshToken: string): Promise<TokenResponseDto> {
     const user = await this.usersService.findOne(userId);
-    
+
     if (!user || !user.refreshToken) {
       throw new UnauthorizedException('Access Denied');
     }
@@ -49,7 +50,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
+  validateUser(email: string, password: string): Promise<User | null> {
     return this.usersService.validateUser(email, password);
   }
 
@@ -83,7 +84,7 @@ export class AuthService {
   }
 
   private transformUserToDto(user: User): UserResponseDto {
-    const { password, refreshToken, ...result } = user;
+    const { password: _password, refreshToken: _refreshToken, ...result } = user;
     return result as UserResponseDto;
   }
 }

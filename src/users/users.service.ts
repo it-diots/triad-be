@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthProvider, User } from './entities/user.entity';
@@ -36,7 +37,7 @@ export class UsersService {
     firstName?: string;
     lastName?: string;
     avatar?: string;
-    providerData?: Record<string, any>;
+    providerData?: Record<string, unknown>;
   }): Promise<User> {
     const existingUser = await this.findByProviderAndId(profile.provider, profile.providerId);
 
@@ -71,7 +72,7 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async findAll(): Promise<User[]> {
+  findAll(): Promise<User[]> {
     return this.userRepository.find({
       select: [
         'id',
@@ -96,15 +97,15 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
   }
 
-  async findByUsername(username: string): Promise<User | null> {
+  findByUsername(username: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { username } });
   }
 
-  async findByProviderAndId(provider: AuthProvider, providerId: string): Promise<User | null> {
+  findByProviderAndId(provider: AuthProvider, providerId: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { provider, providerId },
     });

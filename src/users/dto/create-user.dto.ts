@@ -14,7 +14,7 @@ export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   @IsNotEmpty()
-  @Transform(({ value }) => value.toLowerCase())
+  @Transform(({ value }: { value: string }) => value.toLowerCase())
   email: string;
 
   @ApiProperty({ example: 'password123!' })
@@ -35,7 +35,7 @@ export class CreateUserDto {
   @Matches(/^[a-zA-Z0-9_-]+$/, {
     message: 'Username can only contain letters, numbers, underscores and hyphens',
   })
-  @Transform(({ value }) => value.toLowerCase())
+  @Transform(({ value }: { value: string }) => value.toLowerCase())
   username: string;
 
   @ApiProperty({ example: 'John', required: false })
