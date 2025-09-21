@@ -1,8 +1,8 @@
-import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import express from 'express';
 
 import { AppModule } from './app.module';
@@ -12,18 +12,57 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 let cachedApp: NestExpressApplication;
 
-function setupCors(app: NestExpressApplication, isVercel: boolean): void {
-  app.enableCors({
-    origin: isVercel ? true : process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: isVercel
-      ? ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'Cache-Control']
-      : ['Content-Type', 'Authorization'],
-  });
-}
+const isExtensionOrigin = (origin: string): boolean =>
+  origin.startsWith('chrome-extension://') ||
+  origin.startsWith('moz-extension://') ||
+  origin.startsWith('ms-browser-extension://');
 
-function setupValidation(app: NestExpressApplication): void {
+const isLocalOrigin = (origin: string): boolean =>
+  origin.includes('localhost') || origin.includes('127.0.0.1');
+
+const setupCors = (app: NestExpressApplication, isVercel: boolean): void => {
+  const corsOptions = {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ): void => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (isExtensionOrigin(origin) || isLocalOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      if (isVercel) {
+        return callback(null, true);
+      }
+
+      const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || [];
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Cache-Control',
+      'X-Extension-Id',
+    ],
+    exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Limit'],
+  };
+
+  app.enableCors(corsOptions);
+};
+
+const setupValidation = (app: NestExpressApplication): void => {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -34,13 +73,13 @@ function setupValidation(app: NestExpressApplication): void {
       },
     }),
   );
-}
+};
 
-function setupSwagger(
+const setupSwagger = (
   app: NestExpressApplication,
   configService: ConfigService,
   logger?: Logger,
-): void {
+): void => {
   const swaggerEnabled = configService.get<boolean>('app.swagger.enabled', true);
   if (!swaggerEnabled) {
     return;
@@ -65,9 +104,9 @@ function setupSwagger(
   if (logger) {
     logger.log(`Swagger documentation available at /${swaggerPath}`);
   }
-}
+};
 
-async function createNestApp(): Promise<NestExpressApplication> {
+const createNestApp = async (): Promise<NestExpressApplication> => {
   if (cachedApp) {
     return cachedApp;
   }
@@ -99,10 +138,10 @@ async function createNestApp(): Promise<NestExpressApplication> {
   await app.init();
   cachedApp = app;
   return app;
-}
+};
 
 // Vercel 서버리스 함수 핸들러
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+const handler = async (req: VercelRequest, res: VercelResponse): Promise<void> => {
   const app = await createNestApp();
   const expressApp = app.getHttpAdapter().getInstance();
 
@@ -120,10 +159,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
     });
   });
-}
+};
+
+export default handler;
 
 // 로컬 개발을 위한 기존 bootstrap 함수 유지
-async function bootstrap(): Promise<void> {
+const bootstrap = async (): Promise<void> => {
   if (process.env.VERCEL) {
     return;
   }
@@ -154,7 +195,7 @@ async function bootstrap(): Promise<void> {
 
   logger.log(`Application is running on: http://localhost:${port}/${apiPrefix}`);
   logger.log(`Environment: ${configService.get<string>('app.environment', 'development')}`);
-}
+};
 
 // 로컬 개발 환경에서만 실행
 if (!process.env.VERCEL) {

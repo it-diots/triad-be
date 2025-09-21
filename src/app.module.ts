@@ -9,7 +9,9 @@ import { CollaborationModule } from './collaboration/collaboration.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import supabaseConfig from './config/supabase.config';
 import { validationSchema } from './config/validation.schema';
+import { SupabaseModule } from './supabase/supabase.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -18,7 +20,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      load: [appConfig, databaseConfig, jwtConfig],
+      load: [appConfig, databaseConfig, jwtConfig, supabaseConfig],
       validationSchema,
       expandVariables: true,
     }),
@@ -35,6 +37,9 @@ import { UsersModule } from './users/users.module';
       },
       inject: [ConfigService],
     }),
+
+    // Core Modules
+    SupabaseModule,
 
     // Feature Modules
     UsersModule,

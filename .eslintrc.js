@@ -133,6 +133,11 @@ module.exports = {
     'require-await': 'error',
     'no-async-promise-executor': 'error',
 
+    // Function 선언 금지 - Arrow Function 강제
+    'func-style': ['error', 'expression'],
+    'prefer-arrow-callback': 'error',
+    'arrow-body-style': ['error', 'as-needed'],
+
     // NestJS 특화 규칙
     '@typescript-eslint/member-ordering': [
       'error',

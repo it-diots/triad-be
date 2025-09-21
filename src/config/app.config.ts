@@ -16,9 +16,8 @@ const isSwaggerEnabled = (isProduction: boolean): boolean => {
   return !isProduction;
 };
 
-const getLogLevel = (isProduction: boolean): string => {
-  return process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug');
-};
+const getLogLevel = (isProduction: boolean): string =>
+  process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug');
 
 export default registerAs('app', () => {
   const isProduction = process.env.NODE_ENV === 'production';

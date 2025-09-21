@@ -1,0 +1,284 @@
+# Policy Entities 문서
+
+## 개요
+
+이 문서는 Triad 서비스의 정책 관련 엔티티들을 설명합니다. 요금제, 구독, 사용량 추적을 위한 데이터 구조를 정의합니다.
+
+## 1. PlanTier (요금제 티어)
+
+### 개요
+각 요금제의 기능과 제한사항을 정의하는 엔티티입니다. JSONB 컬럼을 사용하여 유연한 설정이 가능합니다.
+
+### 요금제 타입 (PlanType)
+- `FREE` - 무료 플랜
+- `STARTER` - 스타터 플랜
+- `PROFESSIONAL` - 프로페셔널 플랜
+- `ENTERPRISE` - 엔터프라이즈 플랜
+- `CUSTOM` - 커스텀 플랜
+
+### 주요 필드
+
+#### 기본 정보
+- `id` (UUID): 플랜 고유 식별자
+- `name` (PlanType): 플랜 타입 (내부 식별자)
+- `displayName` (string): 사용자에게 표시될 플랜 이름
+- `description` (text): 플랜 설명
+- `priceMonthly` (decimal): 월간 요금 (USD)
+- `priceYearly` (decimal): 연간 요금 (USD)
+
+#### 플랜 기능 (PlanTierFeatures)
+```typescript
+{
+  maxProjects: number;         // 최대 프로젝트 수 (-1: 무제한)
+  maxCollaborators: number;    // 최대 협업자 수 (-1: 무제한)
+  maxStorageGB: number;        // 최대 저장공간 GB (-1: 무제한)
+  maxComments: number;         // 최대 코멘트 수 (-1: 무제한)
+  realTimeSync: boolean;       // 실시간 동기화
+  videoRecording: boolean;     // 비디오 녹화
+  advancedAnalytics: boolean;  // 고급 분석
+  prioritySupport: boolean;    // 우선 지원
+  customBranding: boolean;     // 커스텀 브랜딩
+  apiAccess: boolean;          // API 액세스
+  samlSSO: boolean;           // SAML SSO
+  auditLogs: boolean;         // 감사 로그
+  dedicatedSupport: boolean;  // 전담 지원
+}
+```
+
+#### 사용량 제한 (PlanTierLimits)
+```typescript
+{
+  dailyApiCalls: number;       // 일일 API 호출 수 (-1: 무제한)
+  monthlyBandwidthGB: number;  // 월간 대역폭 GB (-1: 무제한)
+  concurrentSessions: number;  // 동시 세션 수 (-1: 무제한)
+  fileUploadSizeMB: number;   // 파일 업로드 크기 MB (-1: 무제한)
+  webhookEndpoints: number;    // 웹훅 엔드포인트 수
+  exportFrequency: number;     // 월간 내보내기 횟수 (-1: 무제한)
+}
+```
+
+#### UI/UX 관련
+- `isActive` (boolean): 플랜 활성화 여부
+- `sortOrder` (number): 표시 순서
+- `color` (string): 플랜 색상 (UI용)
+- `isRecommended` (boolean): 추천 플랜 여부
+
+#### 결제 연동
+- `stripePriceIdMonthly` (string): Stripe 월간 가격 ID
+- `stripePriceIdYearly` (string): Stripe 연간 가격 ID
+
+### 주요 메서드
+- `hasFeature(feature)`: 특정 기능 활성화 여부 확인
+- `checkLimit(limitType, currentUsage)`: 사용량 제한 체크
+- `canUpgradeTo(targetPlan)`: 플랜 업그레이드 가능 여부
+- `getYearlyDiscount()`: 연간 요금 할인율 계산
+
+## 2. Subscription (구독)
+
+### 개요
+사용자의 플랜 구독 정보를 관리하는 엔티티입니다. Stripe 등의 외부 결제 서비스와 연동됩니다.
+
+### 구독 상태 (SubscriptionStatus)
+- `ACTIVE` - 활성 구독
+- `CANCELLED` - 취소된 구독
+- `EXPIRED` - 만료된 구독
+- `TRIAL` - 무료 체험
+- `PENDING` - 대기 중
+- `SUSPENDED` - 일시 정지
+- `PAST_DUE` - 연체
+
+### 결제 주기 (BillingInterval)
+- `MONTHLY` - 월간 결제
+- `YEARLY` - 연간 결제
+
+### 결제 수단 (PaymentMethod)
+- `CREDIT_CARD` - 신용카드
+- `PAYPAL` - 페이팔
+- `BANK_TRANSFER` - 계좌이체
+- `INVOICE` - 인보이스
+
+### 주요 필드
+
+#### 기본 정보
+- `id` (UUID): 구독 고유 식별자
+- `userId` (UUID): 구독 사용자 ID
+- `planTierId` (UUID): 플랜 티어 ID
+- `status` (SubscriptionStatus): 구독 상태
+- `billingInterval` (BillingInterval): 결제 주기
+- `paymentMethod` (PaymentMethod): 결제 수단
+
+#### 일정 관리
+- `startsAt` (timestamp): 구독 시작일
+- `endsAt` (timestamp): 구독 종료일
+- `trialEndsAt` (timestamp): 무료 체험 종료일
+- `nextBillingDate` (timestamp): 다음 결제 예정일
+- `cancelledAt` (timestamp): 취소 요청 일시
+
+#### 결제 정보
+- `currentAmount` (decimal): 현재 결제 금액
+- `currency` (string): 통화 (기본: USD)
+- `stripeSubscriptionId` (string): Stripe 구독 ID
+- `stripeCustomerId` (string): Stripe 고객 ID
+
+#### 설정 및 메타데이터
+- `autoRenew` (boolean): 자동 갱신 여부
+- `cancellationReason` (string): 취소 사유
+- `metadata` (jsonb): 구독 메타데이터
+
+### 주요 메서드
+
+#### 상태 확인
+- `isActive()`: 구독이 활성 상태인지 확인
+- `isTrial()`: 무료 체험 중인지 확인
+- `isExpired()`: 구독 만료 여부 확인
+- `isCancelled()`: 취소된 구독인지 확인
+- `willAutoRenew()`: 자동 갱신 예정인지 확인
+
+#### 기간 관리
+- `getDurationInDays()`: 구독 기간 계산 (일 단위)
+- `getRemainingDays()`: 남은 구독 기간 (일 단위)
+- `getDaysUntilNextBilling()`: 다음 결제까지 남은 일수
+
+#### 구독 관리
+- `cancel(immediately, reason)`: 구독 취소
+- `suspend()`: 구독 일시 정지
+- `resume()`: 구독 재개
+- `startTrial(trialDays)`: 무료 체험 시작
+- `convertTrialToActive()`: 체험을 유료 구독으로 전환
+- `renew()`: 구독 갱신
+- `calculateAmount(planTier)`: 구독료 계산
+
+## 3. UsageRecord (사용량 기록)
+
+### 개요
+사용자별 각종 메트릭의 사용량을 추적하는 엔티티입니다. 일별 단위로 집계되며, 플랜 제한 확인에 사용됩니다.
+
+### 메트릭 타입 (MetricType)
+- `PROJECT_COUNT` - 프로젝트 수
+- `COLLABORATOR_COUNT` - 협업자 수
+- `COMMENT_COUNT` - 코멘트 수
+- `API_CALLS` - API 호출 수
+- `STORAGE_USAGE` - 저장공간 사용량
+- `BANDWIDTH_USAGE` - 대역폭 사용량
+- `SESSION_TIME` - 세션 시간
+- `FILE_UPLOADS` - 파일 업로드
+- `VIDEO_RECORDINGS` - 비디오 녹화
+- `WEBHOOK_CALLS` - 웹훅 호출
+- `EXPORT_REQUESTS` - 내보내기 요청
+
+### 집계 타입 (AggregationType)
+- `SUM` - 누적 합계 (API 호출 수, 댓글 수 등)
+- `MAX` - 최대값 (프로젝트 수, 협업자 수 등)
+- `AVERAGE` - 평균 (세션 시간 등)
+- `COUNT` - 개수 (로그인 횟수 등)
+
+### 주요 필드
+
+#### 기본 정보
+- `id` (UUID): 기록 고유 식별자
+- `userId` (UUID): 사용자 ID
+- `metricType` (MetricType): 메트릭 타입
+- `metricValue` (bigint): 메트릭 값
+- `date` (date): 기록 날짜 (YYYY-MM-DD)
+- `aggregationType` (AggregationType): 집계 타입
+
+#### 메타데이터
+```typescript
+metadata: {
+  source?: string;        // 사용량 발생 소스
+  projectId?: string;     // 관련 프로젝트 ID
+  sessionId?: string;     // 세션 ID
+  ipAddress?: string;     // IP 주소
+  userAgent?: string;     // User Agent
+  additionalInfo?: Record<string, any>;
+}
+```
+
+#### 추가 정보
+- `isAutoGenerated` (boolean): 자동 생성 여부
+- `createdAt` (timestamp): 생성일시
+
+### 주요 메서드
+
+#### 날짜 관련
+- `static getTodayDateString()`: 오늘 날짜 문자열 생성
+- `static getDateString(date)`: 특정 날짜 문자열 생성
+- `static getDateRange(startDate, endDate)`: 날짜 범위 생성
+- `isInWeek(weekStart)`: 주간 집계용 날짜 범위 확인
+- `isInMonth(year, month)`: 월간 집계용 날짜 범위 확인
+
+#### 값 관리
+- `increment(value)`: 메트릭 값 증가
+- `setMaxValue(value)`: 메트릭 값 설정 (MAX 타입)
+- `updateAverage(newValue, count)`: 평균 값 계산
+- `reset()`: 사용량 리셋
+
+#### 메타데이터 관리
+- `updateMetadata(key, value)`: 메타데이터 업데이트
+
+#### 정적 메서드
+- `static calculateCurrentPeriodUsage(records, metricType, periodType)`: 현재 주기 사용량 계산
+- `static getDefaultAggregationType(metricType)`: 메트릭 타입별 기본 집계 타입 반환
+- `static create(userId, metricType, value, date, metadata)`: 사용량 기록 생성 헬퍼
+
+## 인덱스 구성
+
+### UsageRecord 인덱스
+- 복합 유니크 인덱스: `userId`, `metricType`, `date`
+- 일반 인덱스:
+  - `userId`, `date`
+  - `metricType`, `date`
+  - `userId` (단독)
+  - `metricType` (단독)
+  - `date` (단독)
+
+## 사용 예시
+
+### 플랜 티어 생성
+```typescript
+const freePlan = new PlanTier();
+freePlan.name = PlanType.FREE;
+freePlan.displayName = 'Free Plan';
+freePlan.features = {
+  maxProjects: 3,
+  maxCollaborators: 5,
+  realTimeSync: true,
+  apiAccess: false,
+  // ... other features
+};
+```
+
+### 구독 생성
+```typescript
+const subscription = new Subscription();
+subscription.userId = 'user-uuid';
+subscription.planTierId = 'plan-uuid';
+subscription.status = SubscriptionStatus.ACTIVE;
+subscription.billingInterval = BillingInterval.MONTHLY;
+```
+
+### 사용량 기록
+```typescript
+const usage = new UsageRecord();
+usage.userId = 'user-uuid';
+usage.metricType = MetricType.API_CALLS;
+usage.metricValue = 150;
+usage.date = '2024-01-15';
+```
+
+## 관계 (Relations)
+
+현재 엔티티 파일들은 독립적으로 정의되어 있으며, 실제 구현 시 다음과 같은 관계가 추가될 예정입니다:
+
+- **PlanTier** → Subscription (1:N)
+- **User** → Subscription (1:N)
+- **User** → UsageRecord (1:N)
+- **Subscription** → Payment (1:N)
+
+## 주의사항
+
+1. **무제한 값**: `-1`은 무제한을 의미합니다
+2. **JSONB 컬럼**: PostgreSQL의 JSONB 타입을 사용하여 유연한 데이터 구조 지원
+3. **날짜 형식**: 사용량 기록의 날짜는 'YYYY-MM-DD' 형식 사용
+4. **인덱싱**: 성능을 위해 적절한 인덱스가 설정되어 있음
+5. **Stripe 연동**: 외부 결제 서비스 연동을 위한 필드들이 준비되어 있음
