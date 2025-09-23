@@ -1,20 +1,28 @@
-// Supabase Database 테이블 타입 정의
+// 프로젝트 세션 타입 정의
 export interface ProjectSession {
   id: string;
-  project_id: string;
-  user_id: string;
-  user_info: {
-    username: string;
-    email?: string;
-    avatar?: string;
-  };
+  projectId: string;
+  userId: string;
+  username: string;
+  userEmail?: string;
+  userAvatar?: string;
+  joinedAt: Date;
+  lastActivity: Date;
+  isActive: boolean;
+  cursorPosition: {
+    x: number;
+    y: number;
+  } | null;
+  // 레거시 필드 (호환성용)
+  project_id?: string;
+  user_id?: string;
   cursor_position?: {
     x: number;
     y: number;
   };
-  is_active: boolean;
-  joined_at: string;
-  last_activity: string;
+  is_active?: boolean;
+  joined_at?: string;
+  last_activity?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -127,8 +135,10 @@ export interface MouseTrailDto {
 
 export interface JoinProjectDto {
   username: string;
-  email?: string;
-  avatar?: string;
+  userEmail?: string;
+  userAvatar?: string;
+  email?: string; // 레거시 호환용
+  avatar?: string; // 레거시 호환용
 }
 
 // Supabase 테이블 이름 상수

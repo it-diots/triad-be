@@ -1,8 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { Injectable, Logger } from '@nestjs/common';
 
-import { SupabaseService } from '../supabase/supabase.service';
-import { SessionHelper } from './helpers/session.helper';
 import { CommentService } from './services/comment.service';
 import { MouseTrackingService } from './services/mouse-tracking.service';
 import {
@@ -11,26 +8,16 @@ import {
   JoinProjectDto,
   MousePosition,
   MouseTrailDto,
-  PresenceState,
   ProjectSession,
-  REALTIME_EVENTS,
-  SUPABASE_TABLES,
   UpdateCursorDto,
 } from './types/collaboration.types';
-
-// Supabase 응답 타입 정의
-interface SupabaseResponse<T> {
-  data: T | null;
-  error: Error | null;
-}
 
 @Injectable()
 export class CollaborationService {
   private readonly logger = new Logger(CollaborationService.name);
-  private activeChannels: Map<string, RealtimeChannel> = new Map();
+  private activeSessions: Map<string, Map<string, ProjectSession>> = new Map(); // projectId -> userId -> session
 
   constructor(
-    private readonly supabaseService: SupabaseService,
     private readonly mouseTrackingService: MouseTrackingService,
     private readonly commentService: CommentService,
   ) {}
@@ -38,20 +25,39 @@ export class CollaborationService {
   /**
    * 프로젝트에 사용자 참가
    */
-  async joinProject(
+  joinProject(
     projectId: string,
     userId: string,
     userInfo: JoinProjectDto,
-  ): Promise<{ success: boolean; projectId: string; channelName: string; sessionId: string }> {
+  ): Promise<{ success: boolean; projectId: string; sessionId: string }> {
     try {
-      await this.validateProjectExists(projectId);
-      const sessionId = await SessionHelper.handleUserSession(
-        this.supabaseService,
+      const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // 프로젝트 세션 초기화
+      if (!this.activeSessions.has(projectId)) {
+        this.activeSessions.set(projectId, new Map());
+      }
+
+      const projectSessions = this.activeSessions.get(projectId);
+      if (!projectSessions) {
+        throw new Error('Failed to get project sessions');
+      }
+
+      // 사용자 세션 생성
+      const session: ProjectSession = {
+        id: sessionId,
         projectId,
         userId,
-        userInfo,
-      );
-      await this.setupRealtimeConnection(projectId, userId, userInfo);
+        username: userInfo.username,
+        userEmail: userInfo.userEmail,
+        userAvatar: userInfo.userAvatar,
+        joinedAt: new Date(),
+        lastActivity: new Date(),
+        isActive: true,
+        cursorPosition: null,
+      };
+
+      projectSessions.set(userId, session);
 
       this.logger.log(`사용자 ${userId}가 프로젝트 ${projectId}에 참가했습니다`);
 
@@ -71,26 +77,22 @@ export class CollaborationService {
   /**
    * 프로젝트에서 사용자 퇴장
    */
-  async leaveProject(projectId: string, userId: string): Promise<void> {
+  leaveProject(projectId: string, userId: string): void {
     try {
-      const supabase = this.supabaseService.getClient();
+      const projectSessions = this.activeSessions.get(projectId);
 
-      await supabase
-        .from(SUPABASE_TABLES.PROJECT_SESSIONS)
-        .update({
-          is_active: false,
-          last_activity: new Date().toISOString(),
-        })
-        .eq('project_id', projectId)
-        .eq('user_id', userId);
+      if (projectSessions) {
+        const session = projectSessions.get(userId);
+        if (session) {
+          session.isActive = false;
+          session.lastActivity = new Date();
+        }
+        projectSessions.delete(userId);
 
-      const channelName = `project:${projectId}`;
-      const channel = this.activeChannels.get(channelName);
-
-      if (channel) {
-        await channel.untrack();
-        await this.supabaseService.unsubscribeChannel(channelName);
-        this.activeChannels.delete(channelName);
+        // 빈 프로젝트 정리
+        if (projectSessions.size === 0) {
+          this.activeSessions.delete(projectId);
+        }
       }
 
       // 마우스 추적 클린업
@@ -105,7 +107,20 @@ export class CollaborationService {
   }
 
   /**
-   * 커서 위치 업데이트 (향상된 실시간 추적)
+   * URL 기반 프로젝트에 사용자 참가 (Chrome Extension용)
+   */
+  joinUrlProject(
+    url: string,
+    userId: string,
+    userInfo: JoinProjectDto,
+  ): Promise<{ success: boolean; projectId: string; sessionId: string }> {
+    // URL을 프로젝트 ID로 변환 (해시 또는 인코딩)
+    const projectId = this.urlToProjectId(url);
+    return this.joinProject(projectId, userId, userInfo);
+  }
+
+  /**
+   * 커서 위치 업데이트
    */
   async updateCursorPosition(
     projectId: string,
@@ -114,17 +129,15 @@ export class CollaborationService {
     cursorData: UpdateCursorDto,
   ): Promise<void> {
     try {
-      const supabase = this.supabaseService.getClient();
+      const projectSessions = this.activeSessions.get(projectId);
 
-      // DB 업데이트 (간헐적으로만)
-      await supabase
-        .from(SUPABASE_TABLES.PROJECT_SESSIONS)
-        .update({
-          cursor_position: cursorData.position,
-          last_activity: new Date().toISOString(),
-        })
-        .eq('project_id', projectId)
-        .eq('user_id', userId);
+      if (projectSessions) {
+        const session = projectSessions.get(userId);
+        if (session) {
+          session.cursorPosition = cursorData.position;
+          session.lastActivity = new Date();
+        }
+      }
 
       // 실시간 마우스 추적 서비스 사용
       await this.mouseTrackingService.updateMousePosition(projectId, {
@@ -198,6 +211,15 @@ export class CollaborationService {
       } else {
         await this.mouseTrackingService.setUserIdle(projectId, userId);
       }
+
+      const projectSessions = this.activeSessions.get(projectId);
+      if (projectSessions) {
+        const session = projectSessions.get(userId);
+        if (session) {
+          session.isActive = isActive;
+          session.lastActivity = new Date();
+        }
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`사용자 활동 상태 업데이트 실패: ${errorMessage}`);
@@ -241,22 +263,15 @@ export class CollaborationService {
   /**
    * 프로젝트의 활성 세션 조회
    */
-  async getActiveSessions(projectId: string): Promise<ProjectSession[]> {
+  getActiveSessions(projectId: string): ProjectSession[] {
     try {
-      const supabase = this.supabaseService.getClient();
+      const projectSessions = this.activeSessions.get(projectId);
 
-      const { data: sessions, error } = await supabase
-        .from(SUPABASE_TABLES.PROJECT_SESSIONS)
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('is_active', true)
-        .order('joined_at', { ascending: false });
-
-      if (error || !sessions) {
-        throw new BadRequestException('세션 조회 실패');
+      if (!projectSessions) {
+        return [];
       }
 
-      return sessions as ProjectSession[];
+      return Array.from(projectSessions.values()).filter((session) => session.isActive);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`세션 조회 실패: ${errorMessage}`);
@@ -265,97 +280,23 @@ export class CollaborationService {
   }
 
   /**
-   * 모든 활성 채널 정리
+   * URL을 프로젝트 ID로 변환
    */
-  async cleanupAllChannels(): Promise<void> {
-    for (const [channelName, channel] of this.activeChannels) {
-      await channel.untrack();
-      await this.supabaseService.unsubscribeChannel(channelName);
-    }
-    this.activeChannels.clear();
-    this.logger.log('모든 채널이 정리되었습니다');
+  private urlToProjectId(url: string): string {
+    // URL을 안전한 프로젝트 ID로 변환
+    // 간단한 예: URL의 해시값 사용
+    // URL의 base64 인코딩을 사용한 안전한 프로젝트 ID 생성
+    return Buffer.from(url)
+      .toString('base64')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 16);
   }
 
   /**
-   * 프로젝트 존재 여부 확인
+   * 모든 활성 세션 정리
    */
-  private async validateProjectExists(projectId: string): Promise<void> {
-    const supabase = this.supabaseService.getClient();
-    const response = (await supabase
-      .from(SUPABASE_TABLES.PROJECTS)
-      .select('*')
-      .eq('id', projectId)
-      .single()) as SupabaseResponse<unknown>;
-
-    if (response.error || !response.data) {
-      throw new NotFoundException(`프로젝트를 찾을 수 없습니다: ${projectId}`);
-    }
-  }
-
-  /**
-   * Realtime 연결 설정
-   */
-  private async setupRealtimeConnection(
-    projectId: string,
-    userId: string,
-    userInfo: JoinProjectDto,
-  ): Promise<void> {
-    const channel = this.setupProjectChannel(projectId);
-    await this.trackUserPresence(channel, userId, userInfo);
-  }
-
-  /**
-   * 프로젝트 채널 설정
-   */
-  private setupProjectChannel(projectId: string): RealtimeChannel {
-    const channelName = `project:${projectId}`;
-
-    let channel = this.activeChannels.get(channelName);
-    if (channel) {
-      return channel;
-    }
-
-    channel = this.supabaseService.getProjectChannel(projectId);
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        this.logger.log(`Presence 동기화 - 프로젝트 ${projectId}:`, state);
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        this.logger.log(`사용자 참가 - ${key} in 프로젝트 ${projectId}`, newPresences);
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        this.logger.log(`사용자 퇴장 - ${key} from 프로젝트 ${projectId}`, leftPresences);
-      });
-
-    Object.values(REALTIME_EVENTS).forEach((eventName) => {
-      channel.on('broadcast', { event: eventName }, ({ payload }) => {
-        this.logger.log(`이벤트 수신 - ${eventName} in 프로젝트 ${projectId}:`, payload);
-      });
-    });
-
-    channel.subscribe();
-    this.activeChannels.set(channelName, channel);
-
-    return channel;
-  }
-
-  /**
-   * Presence 추적
-   */
-  private async trackUserPresence(
-    channel: RealtimeChannel,
-    userId: string,
-    userInfo: JoinProjectDto,
-  ): Promise<void> {
-    const presenceState: PresenceState = {
-      user_id: userId,
-      username: userInfo.username,
-      online_at: new Date().toISOString(),
-      is_active: true,
-    };
-
-    await channel.track(presenceState);
+  cleanupAllSessions(): void {
+    this.activeSessions.clear();
+    this.logger.log('모든 세션이 정리되었습니다');
   }
 }

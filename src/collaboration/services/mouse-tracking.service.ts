@@ -1,13 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
-import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  MousePosition,
-  MousePath,
-  CursorMoveEvent,
-  MouseTrailEvent,
-  REALTIME_EVENTS,
-} from '../types/collaboration.types';
+import { MousePosition, MousePath } from '../types/collaboration.types';
 
 interface MouseTrackingState {
   lastPosition: MousePosition;
@@ -16,6 +10,26 @@ interface MouseTrackingState {
   velocity: { dx: number; dy: number };
   isIdle: boolean;
   color: string;
+}
+
+interface MouseData {
+  userId: string;
+  username: string;
+  position: MousePosition;
+  color?: string;
+}
+
+interface MouseBatchData {
+  userId: string;
+  username: string;
+  positions: MousePosition[];
+}
+
+interface MouseClickData {
+  userId: string;
+  username: string;
+  position: MousePosition;
+  clickType: 'left' | 'right' | 'middle';
 }
 
 @Injectable()
@@ -29,20 +43,12 @@ export class MouseTrackingService {
   private readonly BATCH_SIZE = 10; // 10개씩 배치 전송
   private readonly TRAIL_LENGTH = 20; // 최근 20개 위치 유지
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   /**
    * 마우스 위치 업데이트 (쓰로틀링 적용)
    */
-  async updateMousePosition(
-    projectId: string,
-    options: {
-      userId: string;
-      username: string;
-      position: MousePosition;
-      color?: string;
-    },
-  ): Promise<void> {
+  updateMousePosition(projectId: string, options: MouseData): void {
     const { userId, username, position, color } = options;
     const now = Date.now();
     const state = this.getUserState(userId, color);
@@ -64,18 +70,26 @@ export class MouseTrackingService {
     state.isIdle = false;
     this.updateTrail(state, position);
 
-    // Realtime 브로드캐스트
-    await this.broadcastCursorMove(projectId, {
+    // Socket.io Gateway로 이벤트 전파
+    this.eventEmitter.emit('cursor.move', {
+      projectId,
       userId,
       username,
       position,
       velocity,
       color: state.color,
+      timestamp: new Date(),
     });
 
     // 배치가 가득 찼으면 trail 브로드캐스트
     if (state.trail.length >= this.BATCH_SIZE) {
-      await this.broadcastMouseTrail(projectId, userId, username, state.trail);
+      this.eventEmitter.emit('cursor.trail', {
+        projectId,
+        userId,
+        username,
+        trail: [...state.trail],
+        timestamp: new Date(),
+      });
       state.trail = []; // 전송 후 초기화
     }
 
@@ -86,21 +100,13 @@ export class MouseTrackingService {
   /**
    * 배치 마우스 위치 업데이트 (여러 좌표를 한 번에)
    */
-  async updateMouseBatch(
-    projectId: string,
-    options: {
-      userId: string;
-      username: string;
-      positions: MousePosition[];
-      color?: string;
-    },
-  ): Promise<void> {
-    const { userId, username, positions, color } = options;
+  updateMouseBatch(projectId: string, options: MouseBatchData): void {
+    const { userId, username, positions } = options;
     if (positions.length === 0) {
       return;
     }
 
-    const state = this.getUserState(userId, color);
+    const state = this.getUserState(userId);
     const lastPos = positions[positions.length - 1];
 
     // 마지막 위치로 상태 업데이트
@@ -112,13 +118,13 @@ export class MouseTrackingService {
     positions.forEach((pos) => this.updateTrail(state, pos));
 
     // 배치 브로드캐스트
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(channel, REALTIME_EVENTS.CURSOR_BATCH, {
-      user_id: userId,
+    this.eventEmitter.emit('cursor.batch', {
+      projectId,
+      userId,
       username,
       positions,
       color: state.color,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
     });
 
     // 경로 기록
@@ -130,55 +136,50 @@ export class MouseTrackingService {
   /**
    * 마우스 클릭 이벤트 처리
    */
-  async handleMouseClick(
-    projectId: string,
-    options: {
-      userId: string;
-      username: string;
-      position: MousePosition;
-      clickType?: 'left' | 'right' | 'middle';
-    },
-  ): Promise<void> {
-    const { userId, username, position, clickType = 'left' } = options;
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(channel, REALTIME_EVENTS.MOUSE_CLICK, {
-      user_id: userId,
+  handleMouseClick(projectId: string, options: MouseClickData): void {
+    const { userId, username, position, clickType } = options;
+
+    this.eventEmitter.emit('mouse.click', {
+      projectId,
+      userId,
       username,
       position,
-      click_type: clickType,
-      timestamp: new Date().toISOString(),
+      clickType,
+      timestamp: new Date(),
     });
+
+    this.logger.debug(`마우스 클릭: 프로젝트 ${projectId}, 사용자 ${userId}, 타입 ${clickType}`);
   }
 
   /**
    * 유저 유휴 상태 처리
    */
-  async setUserIdle(projectId: string, userId: string): Promise<void> {
+  setUserIdle(projectId: string, userId: string): void {
     const state = this.userStates.get(userId);
     if (state) {
       state.isIdle = true;
     }
 
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(channel, REALTIME_EVENTS.USER_IDLE, {
-      user_id: userId,
-      timestamp: new Date().toISOString(),
+    this.eventEmitter.emit('user.idle', {
+      projectId,
+      userId,
+      timestamp: new Date(),
     });
   }
 
   /**
    * 유저 활성 상태 처리
    */
-  async setUserActive(projectId: string, userId: string): Promise<void> {
+  setUserActive(projectId: string, userId: string): void {
     const state = this.userStates.get(userId);
     if (state) {
       state.isIdle = false;
     }
 
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(channel, REALTIME_EVENTS.USER_ACTIVE, {
-      user_id: userId,
-      timestamp: new Date().toISOString(),
+    this.eventEmitter.emit('user.active', {
+      projectId,
+      userId,
+      timestamp: new Date(),
     });
   }
 
@@ -232,6 +233,8 @@ export class MouseTrackingService {
       path.is_active = false;
       path.end_time = new Date().toISOString();
     }
+
+    this.logger.log(`사용자 ${userId}의 마우스 추적 정리 완료 (프로젝트: ${projectId})`);
   }
 
   // Private 헬퍼 메소드들
@@ -274,55 +277,6 @@ export class MouseTrackingService {
     };
   }
 
-  private async broadcastCursorMove(
-    projectId: string,
-    data: {
-      userId: string;
-      username: string;
-      position: MousePosition;
-      velocity: { dx: number; dy: number };
-      color: string;
-    },
-  ): Promise<void> {
-    const { userId, username, position, velocity, color } = data;
-    const event: CursorMoveEvent = {
-      user_id: userId,
-      username,
-      position,
-      velocity,
-      color,
-      timestamp: new Date().toISOString(),
-    };
-
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(
-      channel,
-      REALTIME_EVENTS.CURSOR_MOVE,
-      event as unknown as Record<string, unknown>,
-    );
-  }
-
-  private async broadcastMouseTrail(
-    projectId: string,
-    userId: string,
-    username: string,
-    trail: MousePosition[],
-  ): Promise<void> {
-    const event: MouseTrailEvent = {
-      user_id: userId,
-      username,
-      trail,
-      timestamp: new Date().toISOString(),
-    };
-
-    const channel = this.supabaseService.getProjectChannel(projectId);
-    await this.supabaseService.broadcastEvent(
-      channel,
-      REALTIME_EVENTS.MOUSE_TRAIL,
-      event as unknown as Record<string, unknown>,
-    );
-  }
-
   private recordMousePath(projectId: string, userId: string, position: MousePosition): void {
     const key = `${projectId}:${userId}`;
     let path = this.mousePaths.get(key);
@@ -340,20 +294,10 @@ export class MouseTrackingService {
 
     path.path_data.push(position);
 
-    // 경로가 너무 길어지면 DB에 저장하고 초기화
-    if (path.path_data.length >= 100) {
-      this.savePathToDatabase(path);
-      path.path_data = []; // 저장 후 초기화
-    }
-  }
-
-  private savePathToDatabase(path: MousePath): void {
-    try {
-      // mouse_paths 테이블이 있다면 저장 (선택적)
-      // 현재는 메모리에서만 관리
-      this.logger.log(`마우스 경로 저장: ${path.user_id} - ${path.path_data.length} points`);
-    } catch (error) {
-      this.logger.error('마우스 경로 저장 실패:', error);
+    // 경로가 너무 길어지면 메모리 관리를 위해 일부 제거
+    if (path.path_data.length >= 1000) {
+      // 최근 500개만 유지
+      path.path_data = path.path_data.slice(-500);
     }
   }
 
