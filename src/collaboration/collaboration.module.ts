@@ -2,16 +2,32 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { UsersModule } from '../users/users.module';
 
 import { CollaborationController } from './collaboration.controller';
 import { CollaborationGateway } from './collaboration.gateway';
 import { CollaborationService } from './collaboration.service';
+import { CommentThread } from './entities/comment-thread.entity';
+import { Comment } from './entities/comment.entity';
+import { Deployment } from './entities/deployment.entity';
+import { Mutation } from './entities/mutation.entity';
+import { ProjectSession } from './entities/project-session.entity';
+import { Project } from './entities/project.entity';
 import { CommentService } from './services/comment.service';
 import { MouseTrackingService } from './services/mouse-tracking.service';
-import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([
+      Project,
+      Comment,
+      CommentThread,
+      Deployment,
+      Mutation,
+      ProjectSession,
+    ]),
     UsersModule,
     EventEmitterModule.forRoot(),
     JwtModule.registerAsync({

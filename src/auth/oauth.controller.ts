@@ -3,11 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 
+import { User } from '../users/entities/user.entity';
+
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { GitHubAuthGuard } from './guards/github-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
-import { User } from '../users/entities/user.entity';
 
 interface AuthRequest extends Request {
   user: User;

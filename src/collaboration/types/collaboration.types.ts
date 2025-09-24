@@ -31,6 +31,7 @@ export interface Comment {
   id: string;
   project_id: string;
   user_id: string;
+  userId: string;
   username: string;
   content: string;
   position: {
@@ -39,6 +40,8 @@ export interface Comment {
   };
   parent_id?: string; // 답글을 위한 필드
   is_resolved: boolean;
+  resolved_at?: string;
+  resolved_by?: string;
   created_at: string;
   updated_at?: string;
 }

@@ -21,7 +21,6 @@ const getLogLevel = (isProduction: boolean): string =>
 
 export default registerAs('app', () => {
   const isProduction = process.env.NODE_ENV === 'production';
-  const isVercel = process.env.VERCEL === '1';
 
   return {
     port: parseInt(process.env.PORT || '3000', 10),
@@ -38,11 +37,6 @@ export default registerAs('app', () => {
     },
     logging: {
       level: getLogLevel(isProduction),
-    },
-    // Vercel 관련 설정
-    vercel: {
-      enabled: isVercel,
-      maxDuration: 30, // Vercel 함수 최대 실행 시간 (초)
     },
   };
 });

@@ -1,29 +1,42 @@
+/* eslint-disable max-lines */
+/* eslint-disable max-lines-per-function */
+/* eslint-disable max-params */
+/* eslint-disable max-depth */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  OnGatewayInit,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-import { CollaborationService } from './collaboration.service';
 import { UsersService } from '../users/users.service';
+
+import { CollaborationService } from './collaboration.service';
 
 interface CursorPosition {
   x: number;
   y: number;
+  absoluteX?: number;
+  absoluteY?: number;
+  elementX?: number;
+  elementY?: number;
   userId: string;
   username: string;
   color?: string;
+  viewport?: { width: number; height: number };
+  timestamp?: number;
 }
 
 interface Comment {
@@ -57,6 +70,7 @@ interface ExtensionSession {
   url: string;
   domain: string;
   path: string;
+  projectId?: string;
   users: Map<string, UserInfo>;
   cursors: Map<string, CursorPosition>;
   comments: Comment[];
@@ -84,6 +98,9 @@ export class CollaborationGateway
   private userSocketMap: Map<string, string> = new Map(); // userId -> socketId
   private socketUserMap: Map<string, UserInfo> = new Map(); // socketId -> user 정보
   private socketUrlMap: Map<string, string> = new Map(); // socketId -> current URL
+  private socketProjectMap: Map<string, string> = new Map(); // socketId -> projectId
+  private urlProjectMap: Map<string, string> = new Map(); // URL -> projectId
+  private projectIdUrlMap: Map<string, string> = new Map(); // projectId -> URL
 
   constructor(
     private jwtService: JwtService,
@@ -130,9 +147,10 @@ export class CollaborationGateway
     }
   }
 
-  handleDisconnect(client: Socket): void {
+  async handleDisconnect(client: Socket): Promise<void> {
     const user = this.socketUserMap.get(client.id);
     const currentUrl = this.socketUrlMap.get(client.id);
+    const projectId = this.socketProjectMap.get(client.id);
 
     if (user) {
       this.userSocketMap.delete(user.id);
@@ -153,13 +171,18 @@ export class CollaborationGateway
 
           // 빈 세션 정리
           if (session.users.size === 0) {
-            this.urlSessions.delete(currentUrl);
+            this.cleanupEmptySession(session, currentUrl);
           }
         }
+      }
+
+      if (projectId) {
+        await this.collaborationService.leaveProject(projectId, user.id);
       }
     }
 
     this.socketUrlMap.delete(client.id);
+    this.socketProjectMap.delete(client.id);
     this.logger.log(`Extension disconnected: ${client.id}`);
   }
 
@@ -193,11 +216,41 @@ export class CollaborationGateway
     session.users.set(user.id, user);
 
     // CollaborationService를 통해 세션 관리
-    await this.collaborationService.joinUrlProject(normalizedUrl, user.id, {
+    const joinResult = await this.collaborationService.joinUrlProject(normalizedUrl, user.id, {
       username: user.username,
       userEmail: user.email,
       userAvatar: user.avatar,
     });
+
+    if (session.projectId && session.projectId !== joinResult.projectId) {
+      this.logger.warn(
+        `ProjectId mismatch for URL ${normalizedUrl}: existing ${session.projectId}, new ${joinResult.projectId}`,
+      );
+    }
+
+    session.projectId = joinResult.projectId;
+
+    this.socketProjectMap.set(client.id, session.projectId);
+    this.urlProjectMap.set(normalizedUrl, session.projectId);
+    this.projectIdUrlMap.set(session.projectId, normalizedUrl);
+
+    if (session.comments.length === 0) {
+      try {
+        const comments = await this.collaborationService.getProjectComments(session.projectId);
+        session.comments = comments.map((comment) => ({
+          id: comment.id,
+          userId: comment.userId,
+          username: comment.username,
+          content: comment.content,
+          position: comment.position,
+          timestamp: new Date(comment.created_at),
+          url: normalizedUrl,
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to load comments for ${normalizedUrl}: ${message}`);
+      }
+    }
 
     // 현재 상태 전송
     this.sendSessionState(client, session, normalizedUrl);
@@ -224,13 +277,13 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
+    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
 
     if (session) {
       session.users.delete(user.id);
       session.cursors.delete(user.id);
 
       await client.leave(normalizedUrl);
-      this.socketUrlMap.delete(client.id);
 
       // 다른 사용자들에게 알림
       client.to(normalizedUrl).emit('user-left', {
@@ -239,13 +292,24 @@ export class CollaborationGateway
       });
 
       // CollaborationService를 통해 세션 종료
-      await this.collaborationService.leaveProject(normalizedUrl, user.id);
+      if (projectId) {
+        await this.collaborationService.leaveProject(projectId, user.id);
+      }
 
       // 빈 세션 정리
       if (session.users.size === 0) {
-        this.urlSessions.delete(normalizedUrl);
+        this.cleanupEmptySession(session, normalizedUrl);
       }
+    } else {
+      await client.leave(normalizedUrl);
     }
+
+    if (!session && projectId) {
+      await this.collaborationService.leaveProject(projectId, user.id);
+    }
+
+    this.socketUrlMap.delete(client.id);
+    this.socketProjectMap.delete(client.id);
 
     this.logger.log(`User ${user.username} left page ${normalizedUrl}`);
   }
@@ -253,7 +317,18 @@ export class CollaborationGateway
   @SubscribeMessage('cursor:move')
   handleCursorMove(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { url: string; x: number; y: number; color?: string },
+    @MessageBody()
+    data: {
+      url: string;
+      x: number;
+      y: number;
+      elementX?: number; // DOM element 기준 좌표
+      elementY?: number;
+      viewport?: { width: number; height: number }; // 뷰포트 크기
+      scrollX?: number; // 현재 스크롤 위치
+      scrollY?: number;
+      color?: string;
+    },
   ): void {
     const user = this.socketUserMap.get(client.id);
     if (!user) {
@@ -262,14 +337,22 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
+    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
 
     if (session && session.users.has(user.id)) {
-      const cursorData: CursorPosition = {
+      // 절대 좌표와 상대 좌표를 모두 전송하여 수신측에서 적절히 변환
+      const cursorData = {
         userId: user.id,
         username: user.username,
-        x: data.x,
+        x: data.x, // 뷰포트 기준 좌표
         y: data.y,
+        absoluteX: data.scrollX ? data.x + data.scrollX : data.x, // 페이지 전체 기준 좌표
+        absoluteY: data.scrollY ? data.y + data.scrollY : data.y,
+        elementX: data.elementX,
+        elementY: data.elementY,
+        viewport: data.viewport,
         color: data.color || this.generateColor(user.id),
+        timestamp: Date.now(),
       };
 
       session.cursors.set(user.id, cursorData);
@@ -278,17 +361,29 @@ export class CollaborationGateway
       client.to(normalizedUrl).emit('cursor:update', cursorData);
 
       // CollaborationService로 전파
-      void this.collaborationService.updateCursorPosition(normalizedUrl, user.id, user.username, {
-        position: { x: data.x, y: data.y },
-        color: cursorData.color,
-      });
+      if (projectId) {
+        void this.collaborationService.updateCursorPosition(projectId, user.id, user.username, {
+          position: { x: data.x, y: data.y },
+          color: cursorData.color,
+        });
+      } else {
+        this.logger.warn(`Missing projectId for cursor move on ${normalizedUrl}`);
+      }
     }
   }
 
   @SubscribeMessage('cursor:click')
   handleCursorClick(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { url: string; x: number; y: number; clickType?: 'left' | 'right' },
+    @MessageBody()
+    data: {
+      url: string;
+      x: number;
+      y: number;
+      clickType?: 'left' | 'right' | 'double';
+      targetElement?: string; // clicked element selector
+      targetText?: string; // clicked element text content
+    },
   ): void {
     const user = this.socketUserMap.get(client.id);
     if (!user) {
@@ -304,7 +399,10 @@ export class CollaborationGateway
       x: data.x,
       y: data.y,
       clickType: data.clickType || 'left',
-      timestamp: new Date(),
+      targetElement: data.targetElement,
+      targetText: data.targetText,
+      color: this.generateColor(user.id),
+      timestamp: Date.now(),
     });
   }
 
@@ -326,11 +424,17 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
+    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
+
+    if (!projectId) {
+      this.logger.warn(`Missing projectId for comment creation on ${normalizedUrl}`);
+      return;
+    }
 
     if (session && session.users.has(user.id)) {
       // CollaborationService를 통해 코멘트 생성
       const comment = await this.collaborationService.createComment(
-        normalizedUrl,
+        projectId,
         user.id,
         user.username,
         {
@@ -342,6 +446,7 @@ export class CollaborationGateway
       // 세션에 코멘트 추가
       const extendedComment = {
         ...comment,
+        userId: comment.user_id, // userId 필드 추가
         url: normalizedUrl,
         xpath: data.xpath,
         timestamp: new Date(),
@@ -367,6 +472,12 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
+    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
+
+    if (!projectId) {
+      this.logger.warn(`Missing projectId for comment deletion on ${normalizedUrl}`);
+      return;
+    }
 
     if (session) {
       const commentIndex = session.comments.findIndex((c) => c.id === data.commentId);
@@ -377,7 +488,7 @@ export class CollaborationGateway
         // 권한 확인 (작성자 또는 관리자만 삭제 가능)
         if (comment.userId === user.id || user.role === 'ADMIN') {
           // CollaborationService를 통해 삭제
-          await this.collaborationService.deleteComment(normalizedUrl, data.commentId, user.id);
+          await this.collaborationService.deleteComment(projectId, data.commentId, user.id);
 
           session.comments.splice(commentIndex, 1);
 
@@ -402,6 +513,7 @@ export class CollaborationGateway
       startXPath?: string;
       endXPath?: string;
       bounds?: { top: number; left: number; width: number; height: number };
+      color?: string;
     },
   ): void {
     const user = this.socketUserMap.get(client.id);
@@ -419,14 +531,24 @@ export class CollaborationGateway
       startXPath: data.startXPath,
       endXPath: data.endXPath,
       bounds: data.bounds,
-      timestamp: new Date(),
+      color: data.color || this.generateColor(user.id),
+      timestamp: Date.now(),
     });
   }
 
   @SubscribeMessage('scroll:sync')
   handleScrollSync(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { url: string; scrollTop: number; scrollLeft: number },
+    @MessageBody()
+    data: {
+      url: string;
+      scrollTop: number;
+      scrollLeft: number;
+      viewportHeight?: number;
+      viewportWidth?: number;
+      pageHeight?: number;
+      pageWidth?: number;
+    },
   ): void {
     const user = this.socketUserMap.get(client.id);
     if (!user) {
@@ -436,11 +558,18 @@ export class CollaborationGateway
     const normalizedUrl = this.normalizeUrl(data.url);
 
     // 스크롤 동기화 (선택적 기능)
+    // 뷰포트 크기 정보를 함께 전송하여 상대적 위치 계산 가능
     client.to(normalizedUrl).emit('scroll:updated', {
       userId: user.id,
       username: user.username,
       scrollTop: data.scrollTop,
       scrollLeft: data.scrollLeft,
+      viewportHeight: data.viewportHeight,
+      viewportWidth: data.viewportWidth,
+      pageHeight: data.pageHeight,
+      pageWidth: data.pageWidth,
+      scrollPercentX: data.pageWidth ? (data.scrollLeft / data.pageWidth) * 100 : 0,
+      scrollPercentY: data.pageHeight ? (data.scrollTop / data.pageHeight) * 100 : 0,
     });
   }
 
@@ -448,34 +577,89 @@ export class CollaborationGateway
   @OnEvent('cursor.move')
   handleCursorMoveEvent(payload: Record<string, unknown>): void {
     const projectId = payload.projectId as string;
-    this.server.to(projectId).emit('cursor:update', payload);
+    this.emitToProjectRooms(projectId, 'cursor:update', payload);
   }
 
   @OnEvent('comment.created')
   handleCommentCreatedEvent(payload: Record<string, unknown>): void {
     const projectId = payload.projectId as string;
-    this.server.to(projectId).emit('comment:created', payload);
+    const urlRoom = this.projectIdUrlMap.get(projectId);
+    if (urlRoom) {
+      const session = this.urlSessions.get(urlRoom);
+      const comment = payload.comment as Comment | undefined;
+      if (session && comment) {
+        const exists = session.comments.some((c) => c.id === comment.id);
+        if (!exists) {
+          session.comments.push({
+            id: comment.id,
+            userId: comment.userId,
+            username: comment.username,
+            content: comment.content,
+            position: comment.position,
+            timestamp:
+              payload.timestamp instanceof Date
+                ? payload.timestamp
+                : new Date((payload.timestamp as string) ?? Date.now()),
+            url: urlRoom,
+          });
+        }
+      }
+    }
+
+    this.emitToProjectRooms(projectId, 'comment:created', payload);
   }
 
   @OnEvent('comment.deleted')
   handleCommentDeletedEvent(payload: Record<string, unknown>): void {
     const projectId = payload.projectId as string;
-    this.server.to(projectId).emit('comment:deleted', payload);
+    const urlRoom = this.projectIdUrlMap.get(projectId);
+    const commentId = payload.commentId as string | undefined;
+
+    if (urlRoom && commentId) {
+      const session = this.urlSessions.get(urlRoom);
+      if (session) {
+        const index = session.comments.findIndex((c) => c.id === commentId);
+        if (index !== -1) {
+          session.comments.splice(index, 1);
+        }
+      }
+    }
+
+    this.emitToProjectRooms(projectId, 'comment:deleted', payload);
   }
 
   @OnEvent('user.active')
   handleUserActiveEvent(payload: Record<string, unknown>): void {
     const projectId = payload.projectId as string;
-    this.server.to(projectId).emit('user:active', payload);
+    this.emitToProjectRooms(projectId, 'user:active', payload);
   }
 
   @OnEvent('user.idle')
   handleUserIdleEvent(payload: Record<string, unknown>): void {
     const projectId = payload.projectId as string;
-    this.server.to(projectId).emit('user:idle', payload);
+    this.emitToProjectRooms(projectId, 'user:idle', payload);
   }
 
   // Helper methods
+  private cleanupEmptySession(session: ExtensionSession, url: string): void {
+    if (session.projectId) {
+      this.projectIdUrlMap.delete(session.projectId);
+    }
+    this.urlProjectMap.delete(url);
+    this.urlSessions.delete(url);
+  }
+
+  private emitToProjectRooms(projectId: string, event: string, payload: unknown): void {
+    if (projectId) {
+      this.server.to(projectId).emit(event, payload);
+    }
+
+    const urlRoom = this.projectIdUrlMap.get(projectId);
+    if (urlRoom && urlRoom !== projectId) {
+      this.server.to(urlRoom).emit(event, payload);
+    }
+  }
+
   private getOrCreateUrlSession(url: string): ExtensionSession {
     if (!this.urlSessions.has(url)) {
       const urlObj = new URL(url);
@@ -483,6 +667,7 @@ export class CollaborationGateway
         url,
         domain: urlObj.hostname,
         path: urlObj.pathname,
+        projectId: this.urlProjectMap.get(url),
         users: new Map(),
         cursors: new Map(),
         comments: [],

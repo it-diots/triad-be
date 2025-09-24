@@ -46,10 +46,10 @@ export class User {
   @Column({ type: 'varchar', length: 50, unique: true })
   username: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'first_name', type: 'varchar', length: 100, nullable: true })
   firstName?: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ name: 'last_name', type: 'varchar', length: 100, nullable: true })
   lastName?: string;
 
   @Column({ type: 'text', nullable: true })
@@ -76,28 +76,28 @@ export class User {
   })
   provider: AuthProvider;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'provider_id', type: 'varchar', length: 255, nullable: true })
   providerId?: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ name: 'provider_data', type: 'jsonb', nullable: true })
   providerData?: Record<string, unknown>;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ name: 'refresh_token', type: 'varchar', length: 500, nullable: true })
   refreshToken?: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'email_verified_at', type: 'timestamp', nullable: true })
   emailVerifiedAt?: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt?: Date;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt?: Date;
 
   @BeforeInsert()

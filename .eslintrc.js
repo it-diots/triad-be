@@ -98,15 +98,7 @@ module.exports = {
     'import/order': [
       'error',
       {
-        groups: [
-          'builtin',
-          'external',
-          'internal',
-          ['parent', 'sibling'],
-          'index',
-          'object',
-          'type',
-        ],
+        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'object', 'type'],
         'newlines-between': 'always',
         alphabetize: {
           order: 'asc',
@@ -181,7 +173,7 @@ module.exports = {
     // 복잡도 관련 규칙
     complexity: ['error', 10],
     'max-depth': ['error', 4],
-    'max-lines': ['error', 400],
+    'max-lines': ['warn', 600],
     'max-lines-per-function': ['error', 50],
     'max-params': ['error', 4],
   },

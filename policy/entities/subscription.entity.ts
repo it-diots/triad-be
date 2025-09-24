@@ -51,103 +51,105 @@ export class Subscription {
   /**
    * 구독 사용자 ID
    */
-  @Column('uuid')
+  @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
   /**
    * 플랜 티어 ID
    */
-  @Column('uuid')
+  @Column({ name: 'plan_tier_id', type: 'uuid' })
   planTierId: string;
 
   /**
    * 구독 상태
    */
   @Column({
-    type: 'enum',
-    enum: SubscriptionStatus,
-    default: SubscriptionStatus.PENDING,
+    type: 'varchar',
+    length: 20,
+    default: 'PENDING',
   })
-  status: SubscriptionStatus;
+  status: string;
 
   /**
    * 결제 주기
    */
   @Column({
-    type: 'enum',
-    enum: BillingInterval,
-    default: BillingInterval.MONTHLY,
+    name: 'billing_cycle',
+    type: 'varchar',
+    length: 20,
+    default: 'monthly',
   })
-  billingInterval: BillingInterval;
+  billingCycle: string;
 
   /**
    * 결제 수단
    */
   @Column({
-    type: 'enum',
-    enum: PaymentMethod,
+    name: 'payment_method',
+    type: 'varchar',
+    length: 20,
     nullable: true,
   })
-  paymentMethod: PaymentMethod;
+  paymentMethod?: string;
 
   /**
    * 구독 시작일
    */
-  @Column('timestamp')
-  startsAt: Date;
+  @Column({ name: 'current_period_start', type: 'timestamp' })
+  currentPeriodStart: Date;
 
   /**
    * 구독 종료일
    */
-  @Column('timestamp')
-  endsAt: Date;
+  @Column({ name: 'current_period_end', type: 'timestamp' })
+  currentPeriodEnd: Date;
 
   /**
    * 무료 체험 종료일
    */
-  @Column('timestamp', { nullable: true })
-  trialEndsAt: Date;
+  @Column({ name: 'trial_end', type: 'timestamp', nullable: true })
+  trialEnd?: Date;
 
   /**
-   * 자동 갱신 여부
+   * 기간 종료 시 취소 여부
    */
-  @Column({ default: true })
-  autoRenew: boolean;
+  @Column({ name: 'cancel_at_period_end', type: 'boolean', default: false })
+  cancelAtPeriodEnd: boolean;
 
   /**
    * 취소 요청 일시
    */
-  @Column('timestamp', { nullable: true })
-  cancelledAt: Date;
+  @Column({ name: 'canceled_at', type: 'timestamp', nullable: true })
+  canceledAt?: Date;
 
   /**
    * 취소 사유
    */
-  @Column({ nullable: true })
-  cancellationReason: string;
+  @Column({ name: 'cancellation_reason', type: 'varchar', nullable: true })
+  cancellationReason?: string;
 
   /**
    * Stripe 구독 ID
    */
-  @Column({ nullable: true })
-  stripeSubscriptionId: string;
+  @Column({ name: 'stripe_subscription_id', type: 'varchar', length: 255, nullable: true, unique: true })
+  stripeSubscriptionId?: string;
 
   /**
    * Stripe 고객 ID
    */
-  @Column({ nullable: true })
-  stripeCustomerId: string;
+  @Column({ name: 'stripe_customer_id', type: 'varchar', length: 255, nullable: true })
+  stripeCustomerId?: string;
 
   /**
    * 다음 결제 예정일
    */
-  @Column('timestamp', { nullable: true })
-  nextBillingDate: Date;
+  @Column({ name: 'next_billing_date', type: 'timestamp', nullable: true })
+  nextBillingDate?: Date;
 
   /**
    * 현재 결제 금액
    */
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  @Column({ name: 'current_amount', type: 'decimal', precision: 10, scale: 2, default: 0 })
   currentAmount: number;
 
   /**
@@ -159,13 +161,13 @@ export class Subscription {
   /**
    * 구독 메타데이터
    */
-  @Column('jsonb', { nullable: true })
-  metadata: Record<string, any>;
+  @Column({ type: 'jsonb', default: '{}', nullable: true })
+  metadata?: Record<string, unknown>;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   // Relations would be added when implementing
