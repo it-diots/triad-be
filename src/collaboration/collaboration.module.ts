@@ -11,7 +11,6 @@ import { CollaborationGateway } from './collaboration.gateway';
 import { CollaborationService } from './collaboration.service';
 import { CommentThread } from './entities/comment-thread.entity';
 import { Comment } from './entities/comment.entity';
-import { Deployment } from './entities/deployment.entity';
 import { Mutation } from './entities/mutation.entity';
 import { ProjectSession } from './entities/project-session.entity';
 import { Project } from './entities/project.entity';
@@ -20,14 +19,7 @@ import { MouseTrackingService } from './services/mouse-tracking.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Project,
-      Comment,
-      CommentThread,
-      Deployment,
-      Mutation,
-      ProjectSession,
-    ]),
+    TypeOrmModule.forFeature([Project, Comment, CommentThread, Mutation, ProjectSession]),
     UsersModule,
     EventEmitterModule.forRoot(),
     JwtModule.registerAsync({

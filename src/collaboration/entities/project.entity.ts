@@ -54,7 +54,7 @@ export class Project {
   })
   status: ProjectStatus;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'json', nullable: true })
   settings?: {
     allowComments: boolean;
     allowGuests: boolean;

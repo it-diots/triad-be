@@ -17,7 +17,6 @@ import { CreateCommentThreadDto } from './dto/create-comment-thread.dto';
 import { CreateMutationDto } from './dto/create-mutation.dto';
 import { CommentThread } from './entities/comment-thread.entity';
 import { Comment as CommentEntity } from './entities/comment.entity';
-import { Deployment } from './entities/deployment.entity';
 import { Mutation } from './entities/mutation.entity';
 import { ProjectSession as ProjectSessionEntity } from './entities/project-session.entity';
 import { Project } from './entities/project.entity';
@@ -46,8 +45,6 @@ export class CollaborationService {
     private readonly commentThreadRepository: Repository<CommentThread>,
     @InjectRepository(CommentEntity)
     private readonly commentRepository: Repository<CommentEntity>,
-    @InjectRepository(Deployment)
-    private readonly deploymentRepository: Repository<Deployment>,
     @InjectRepository(Mutation)
     private readonly mutationRepository: Repository<Mutation>,
     private readonly mouseTrackingService: MouseTrackingService,
@@ -441,44 +438,14 @@ export class CollaborationService {
     projectId: string,
     threadData: CreateCommentThreadDto,
   ): Promise<CommentThread> {
-    const deployment = await this.ensureDeploymentExists(threadData.firstComment.deployment);
+    // Deployment functionality removed - no longer needed for Google Extension
     const savedThread = await this.createCommentThread(projectId, threadData);
-    await this.createFirstComment(projectId, savedThread.id, threadData, deployment?.id);
+    await this.createFirstComment(projectId, savedThread.id, threadData);
 
     return savedThread;
   }
 
-  /**
-   * 배포 정보 확인 또는 생성
-   */
-  private async ensureDeploymentExists(deploymentData?: any): Promise<Deployment | null> {
-    if (!deploymentData) {
-      return null;
-    }
-
-    // @ts-ignore
-    let deployment = await this.deploymentRepository.findOne({
-      // @ts-ignore
-      where: { deploymentId: deploymentData.id },
-    });
-
-    if (!deployment) {
-      // @ts-ignore
-      deployment = this.deploymentRepository.create({
-        deploymentId: deploymentData.id,
-        timestamp: deploymentData.ts,
-        author: deploymentData.author,
-        gitSource: deploymentData.gitSource,
-        commitSha: deploymentData.gitSource.sha,
-        branch: deploymentData.gitSource.branch,
-        commitMessage: deploymentData.gitSource.commitMessage,
-        repoId: deploymentData.gitSource.repoId,
-      });
-      deployment = await this.deploymentRepository.save(deployment);
-    }
-
-    return deployment;
-  }
+  // Deployment functionality removed - no longer needed for Google Extension
 
   /**
    * 코멘트 스레드 생성
@@ -516,7 +483,6 @@ export class CollaborationService {
     projectId: string,
     threadId: string,
     threadData: CreateCommentThreadDto,
-    deploymentId?: string,
   ): Promise<void> {
     const comment = this.commentRepository.create({
       projectId,
@@ -528,7 +494,7 @@ export class CollaborationService {
       commitSha: threadData.firstComment.commitSha,
       href: threadData.firstComment.href,
       leftOnLocalhost: threadData.firstComment.leftOnLocalhost,
-      deploymentId,
+      deploymentId: null, // Deprecated field
       position: { x: threadData.x, y: threadData.y },
     });
 

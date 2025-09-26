@@ -8,8 +8,6 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OAuthController } from './oauth.controller';
-import { GitHubStrategy } from './strategies/github.strategy';
-import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
@@ -35,8 +33,8 @@ import { LocalStrategy } from './strategies/local.strategy';
     LocalStrategy,
     JwtStrategy,
     JwtRefreshStrategy,
-    GoogleStrategy,
-    GitHubStrategy,
+    // OAuth 전략은 환경 변수가 설정된 경우에만 활성화
+    // GoogleStrategy와 GitHubStrategy는 별도 설정 필요
   ],
   exports: [AuthService],
 })

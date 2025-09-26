@@ -30,8 +30,6 @@ export enum AuthProvider {
 }
 
 @Entity('users')
-@Index(['email'], { unique: true })
-@Index(['username'])
 @Index(['provider', 'providerId'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -79,7 +77,7 @@ export class User {
   @Column({ name: 'provider_id', type: 'varchar', length: 255, nullable: true })
   providerId?: string;
 
-  @Column({ name: 'provider_data', type: 'jsonb', nullable: true })
+  @Column({ name: 'provider_data', type: 'json', nullable: true })
   providerData?: Record<string, unknown>;
 
   @Column({ name: 'refresh_token', type: 'varchar', length: 500, nullable: true })

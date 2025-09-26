@@ -14,7 +14,6 @@ import {
 import { User } from '../../users/entities/user.entity';
 
 import { CommentThread } from './comment-thread.entity';
-import { Deployment } from './deployment.entity';
 
 @Entity('comments')
 @Index(['projectId'])
@@ -37,7 +36,7 @@ export class Comment {
   threadId: string;
 
   // 코멘트 내용 (structured content)
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'json', nullable: true })
   body: Record<string, unknown>[];
 
   // 텍스트 버전 (검색 및 호환성용)
@@ -45,7 +44,7 @@ export class Comment {
   content: string;
 
   // 이미지 첨부 정보
-  @Column({ type: 'jsonb', default: '[]' })
+  @Column({ type: 'json', nullable: true })
   images: string[];
 
   // Git 관련 정보
@@ -59,11 +58,11 @@ export class Comment {
   @Column({ name: 'left_on_localhost', type: 'boolean', default: false })
   leftOnLocalhost: boolean;
 
-  // 배포 정보 참조
+  // 배포 정보 참조 (deprecated)
   @Column({ name: 'deployment_id', type: 'uuid', nullable: true })
   deploymentId: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: 'json' })
   position: {
     x: number;
     y: number;
@@ -112,9 +111,7 @@ export class Comment {
   @JoinColumn({ name: 'thread_id' })
   thread: CommentThread;
 
-  @ManyToOne(() => Deployment, { nullable: true })
-  @JoinColumn({ name: 'deployment_id' })
-  deployment: Deployment;
+  // Deployment relation removed - no longer used
 
   @ManyToOne('Comment', 'replies', { nullable: true })
   @JoinColumn({ name: 'parent_id' })

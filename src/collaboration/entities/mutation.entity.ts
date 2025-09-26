@@ -38,8 +38,7 @@ export class Mutation {
 
   // DOM 변경 타입
   @Column({
-    type: 'varchar',
-    length: 50,
+    type: 'enum',
     enum: ['added', 'removed', 'modified', 'style', 'attribute'],
   })
   type: 'added' | 'removed' | 'modified' | 'style' | 'attribute';
@@ -61,7 +60,7 @@ export class Mutation {
   newValue?: string;
 
   // 메타데이터
-  @Column({ type: 'jsonb', default: '{}', nullable: true })
+  @Column({ type: 'json', nullable: true })
   metadata?: Record<string, unknown>;
 
   // URL

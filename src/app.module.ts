@@ -10,6 +10,7 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { validationSchema } from './config/validation.schema';
+import { ProjectsModule } from './projects/projects.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -40,6 +41,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     CollaborationModule,
+    ProjectsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -38,7 +38,7 @@ export class ProjectSession {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ name: 'cursor_position', type: 'jsonb', nullable: true })
+  @Column({ name: 'cursor_position', type: 'json', nullable: true })
   cursorPosition?: {
     x: number;
     y: number;
