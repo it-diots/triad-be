@@ -15,46 +15,64 @@ import { User } from '../../users/entities/user.entity';
 
 import { CommentThread } from './comment-thread.entity';
 
-export enum ProjectStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  ARCHIVED = 'ARCHIVED',
-}
-
 @Entity('projects')
-@Index(['name'])
 @Index(['ownerId'])
-@Index(['status'])
+@Index(['url'])
+@Index(['domain'])
 export class Project {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', { comment: '프로젝트 고유 ID' })
   id: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    comment: '프로젝트 이름',
+  })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({
+    type: 'text',
+    nullable: true,
+    comment: '프로젝트 설명',
+  })
   description?: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  url?: string; // Chrome Extension용 URL
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    comment: 'Chrome Extension용 URL',
+  })
+  url?: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    comment: '프로젝트 도메인',
+  })
   domain?: string;
 
-  @Column({ name: 'is_public', type: 'boolean', default: false })
+  @Column({
+    name: 'is_public',
+    type: 'boolean',
+    default: false,
+    comment: '공개 여부',
+  })
   isPublic: boolean;
 
-  @Column({ name: 'owner_id', type: 'uuid' })
+  @Column({
+    name: 'owner_id',
+    type: 'uuid',
+    comment: '프로젝트 소유자 ID',
+  })
   ownerId: string;
 
   @Column({
-    type: 'enum',
-    enum: ProjectStatus,
-    default: ProjectStatus.ACTIVE,
+    type: 'json',
+    nullable: true,
+    comment: '프로젝트 설정',
   })
-  status: ProjectStatus;
-
-  @Column({ type: 'json', nullable: true })
   settings?: {
     allowComments: boolean;
     allowGuests: boolean;
@@ -62,13 +80,22 @@ export class Project {
     isPublic: boolean;
   };
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({
+    name: 'created_at',
+    comment: '생성 시간',
+  })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({
+    name: 'updated_at',
+    comment: '수정 시간',
+  })
   updatedAt: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at' })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    comment: '삭제 시간 (Soft Delete)',
+  })
   deletedAt?: Date;
 
   // Relations

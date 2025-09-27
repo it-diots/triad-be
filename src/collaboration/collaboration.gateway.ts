@@ -1,9 +1,3 @@
-/* eslint-disable max-lines */
-/* eslint-disable max-lines-per-function */
-/* eslint-disable max-params */
-/* eslint-disable max-depth */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -25,56 +19,16 @@ import { UsersService } from '../users/users.service';
 
 import { CollaborationService } from './collaboration.service';
 
-interface CursorPosition {
-  x: number;
-  y: number;
-  absoluteX?: number;
-  absoluteY?: number;
-  elementX?: number;
-  elementY?: number;
-  userId: string;
-  username: string;
-  color?: string;
-  viewport?: { width: number; height: number };
-  timestamp?: number;
-}
-
-interface Comment {
-  id: string;
-  userId: string;
-  username: string;
-  content: string;
-  position: { x: number; y: number };
-  timestamp: Date;
-  url?: string;
-  xpath?: string;
-}
-
-interface UserInfo {
-  id: string;
-  username: string;
-  email: string;
-  avatar?: string;
-  role?: string;
-}
-
-interface JwtPayload {
-  sub: string;
-  email: string;
-  username: string;
-  iat?: number;
-  exp?: number;
-}
-
-interface ExtensionSession {
-  url: string;
-  domain: string;
-  path: string;
-  projectId?: string;
-  users: Map<string, UserInfo>;
-  cursors: Map<string, CursorPosition>;
-  comments: Comment[];
-}
+import type {
+  CommentCreateMessage,
+  CursorMoveMessage,
+  CursorPosition,
+  ExtensionSession,
+  JwtPayload,
+  ProjectCommentPayload,
+  SessionComment,
+  UserInfo,
+} from './collaboration.gateway.types';
 
 @WebSocketGateway({
   cors: {
@@ -196,71 +150,17 @@ export class CollaborationGateway
       throw new WsException('User not authenticated');
     }
 
-    const { url } = data;
+    const normalizedUrl = this.normalizeUrl(data.url);
 
-    // 이전 URL에서 나가기
-    const previousUrl = this.socketUrlMap.get(client.id);
-    if (previousUrl && previousUrl !== url) {
-      await this.handlePageLeave(client, { url: previousUrl });
-    }
+    await this.leaveIfJoiningAnotherPage(client, normalizedUrl);
 
-    // URL 정규화
-    const normalizedUrl = this.normalizeUrl(url);
     const session = this.getOrCreateUrlSession(normalizedUrl);
+    await this.joinSessionAndSetProject(client, session, normalizedUrl, user);
 
-    // Socket.io 룸 참가
-    await client.join(normalizedUrl);
-    this.socketUrlMap.set(client.id, normalizedUrl);
+    await this.loadSessionComments(session, normalizedUrl);
 
-    // 세션에 사용자 추가
-    session.users.set(user.id, user);
-
-    // CollaborationService를 통해 세션 관리
-    const joinResult = await this.collaborationService.joinUrlProject(normalizedUrl, user.id, {
-      username: user.username,
-      userEmail: user.email,
-      userAvatar: user.avatar,
-    });
-
-    if (session.projectId && session.projectId !== joinResult.projectId) {
-      this.logger.warn(
-        `ProjectId mismatch for URL ${normalizedUrl}: existing ${session.projectId}, new ${joinResult.projectId}`,
-      );
-    }
-
-    session.projectId = joinResult.projectId;
-
-    this.socketProjectMap.set(client.id, session.projectId);
-    this.urlProjectMap.set(normalizedUrl, session.projectId);
-    this.projectIdUrlMap.set(session.projectId, normalizedUrl);
-
-    if (session.comments.length === 0) {
-      try {
-        const comments = await this.collaborationService.getProjectComments(session.projectId);
-        session.comments = comments.map((comment) => ({
-          id: comment.id,
-          userId: comment.userId,
-          username: comment.username,
-          content: comment.content,
-          position: comment.position,
-          timestamp: new Date(comment.created_at),
-          url: normalizedUrl,
-        }));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Failed to load comments for ${normalizedUrl}: ${message}`);
-      }
-    }
-
-    // 현재 상태 전송
     this.sendSessionState(client, session, normalizedUrl);
-
-    // 다른 사용자들에게 알림
-    client.to(normalizedUrl).emit('user-joined', {
-      userId: user.id,
-      username: user.username,
-      avatar: user.avatar,
-    });
+    this.notifyPageJoin(client, normalizedUrl, user);
 
     this.logger.log(`User ${user.username} joined page ${normalizedUrl}`);
   }
@@ -317,18 +217,7 @@ export class CollaborationGateway
   @SubscribeMessage('cursor:move')
   handleCursorMove(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      url: string;
-      x: number;
-      y: number;
-      elementX?: number; // DOM element 기준 좌표
-      elementY?: number;
-      viewport?: { width: number; height: number }; // 뷰포트 크기
-      scrollX?: number; // 현재 스크롤 위치
-      scrollY?: number;
-      color?: string;
-    },
+    @MessageBody() data: CursorMoveMessage,
   ): void {
     const user = this.socketUserMap.get(client.id);
     if (!user) {
@@ -337,38 +226,21 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
-    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
 
-    if (session && session.users.has(user.id)) {
-      // 절대 좌표와 상대 좌표를 모두 전송하여 수신측에서 적절히 변환
-      const cursorData = {
-        userId: user.id,
-        username: user.username,
-        x: data.x, // 뷰포트 기준 좌표
-        y: data.y,
-        absoluteX: data.scrollX ? data.x + data.scrollX : data.x, // 페이지 전체 기준 좌표
-        absoluteY: data.scrollY ? data.y + data.scrollY : data.y,
-        elementX: data.elementX,
-        elementY: data.elementY,
-        viewport: data.viewport,
-        color: data.color || this.generateColor(user.id),
-        timestamp: Date.now(),
-      };
+    if (!session || !session.users.has(user.id)) {
+      return;
+    }
 
-      session.cursors.set(user.id, cursorData);
+    const projectId = session.projectId ?? this.socketProjectMap.get(client.id);
+    const cursorData = this.buildCursorData(user, data);
 
-      // 같은 페이지의 다른 사용자들에게 브로드캐스트
-      client.to(normalizedUrl).emit('cursor:update', cursorData);
+    session.cursors.set(user.id, cursorData);
+    this.broadcastCursorMove(client, normalizedUrl, cursorData);
 
-      // CollaborationService로 전파
-      if (projectId) {
-        void this.collaborationService.updateCursorPosition(projectId, user.id, user.username, {
-          position: { x: data.x, y: data.y },
-          color: cursorData.color,
-        });
-      } else {
-        this.logger.warn(`Missing projectId for cursor move on ${normalizedUrl}`);
-      }
+    if (projectId) {
+      this.persistCursorPosition(projectId, user, data, cursorData.color);
+    } else {
+      this.logger.warn(`Missing projectId for cursor move on ${normalizedUrl}`);
     }
   }
 
@@ -409,13 +281,7 @@ export class CollaborationGateway
   @SubscribeMessage('comment:create')
   async handleCommentCreate(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      url: string;
-      content: string;
-      position: { x: number; y: number };
-      xpath?: string;
-    },
+    @MessageBody() data: CommentCreateMessage,
   ): Promise<void> {
     const user = this.socketUserMap.get(client.id);
     if (!user) {
@@ -424,40 +290,27 @@ export class CollaborationGateway
 
     const normalizedUrl = this.normalizeUrl(data.url);
     const session = this.urlSessions.get(normalizedUrl);
-    const projectId = session?.projectId ?? this.socketProjectMap.get(client.id);
+    if (!session || !session.users.has(user.id)) {
+      return;
+    }
 
+    const projectId = session.projectId ?? this.socketProjectMap.get(client.id);
     if (!projectId) {
       this.logger.warn(`Missing projectId for comment creation on ${normalizedUrl}`);
       return;
     }
 
-    if (session && session.users.has(user.id)) {
-      // CollaborationService를 통해 코멘트 생성
-      const comment = await this.collaborationService.createComment(
-        projectId,
-        user.id,
-        user.username,
-        {
-          content: data.content,
-          position: data.position,
-        },
-      );
+    const sessionComment = await this.createSessionComment({
+      session,
+      normalizedUrl,
+      projectId,
+      user,
+      data,
+    });
 
-      // 세션에 코멘트 추가
-      const extendedComment = {
-        ...comment,
-        userId: comment.user_id, // userId 필드 추가
-        url: normalizedUrl,
-        xpath: data.xpath,
-        timestamp: new Date(),
-      };
-      session.comments.push(extendedComment);
+    this.server.to(normalizedUrl).emit('comment:created', sessionComment);
 
-      // 모든 사용자에게 브로드캐스트
-      this.server.to(normalizedUrl).emit('comment:created', extendedComment);
-
-      this.logger.log(`Comment created by ${user.username} on ${normalizedUrl}`);
-    }
+    this.logger.log(`Comment created by ${user.username} on ${normalizedUrl}`);
   }
 
   @SubscribeMessage('comment:delete')
@@ -586,7 +439,7 @@ export class CollaborationGateway
     const urlRoom = this.projectIdUrlMap.get(projectId);
     if (urlRoom) {
       const session = this.urlSessions.get(urlRoom);
-      const comment = payload.comment as Comment | undefined;
+      const comment = payload.comment as SessionComment | undefined;
       if (session && comment) {
         const exists = session.comments.some((c) => c.id === comment.id);
         if (!exists) {
@@ -641,6 +494,165 @@ export class CollaborationGateway
   }
 
   // Helper methods
+  private async leaveIfJoiningAnotherPage(client: Socket, normalizedUrl: string): Promise<void> {
+    const previousUrl = this.socketUrlMap.get(client.id);
+    if (previousUrl && previousUrl !== normalizedUrl) {
+      await this.handlePageLeave(client, { url: previousUrl });
+    }
+  }
+
+  private async joinSessionAndSetProject(
+    client: Socket,
+    session: ExtensionSession,
+    normalizedUrl: string,
+    user: UserInfo,
+  ): Promise<void> {
+    await client.join(normalizedUrl);
+    this.socketUrlMap.set(client.id, normalizedUrl);
+
+    session.users.set(user.id, user);
+
+    const joinResult = await this.collaborationService.joinUrlProject(normalizedUrl, user.id, {
+      username: user.username,
+      userEmail: user.email,
+      userAvatar: user.avatar,
+    });
+
+    if (!joinResult.projectId) {
+      this.logger.warn(`Failed to resolve projectId for URL ${normalizedUrl}`);
+      return;
+    }
+
+    if (session.projectId && session.projectId !== joinResult.projectId) {
+      this.logger.warn(
+        `ProjectId mismatch for URL ${normalizedUrl}: existing ${session.projectId}, new ${joinResult.projectId}`,
+      );
+    }
+
+    session.projectId = joinResult.projectId;
+    this.socketProjectMap.set(client.id, session.projectId);
+    this.urlProjectMap.set(normalizedUrl, session.projectId);
+    this.projectIdUrlMap.set(session.projectId, normalizedUrl);
+  }
+
+  private async loadSessionComments(
+    session: ExtensionSession,
+    normalizedUrl: string,
+  ): Promise<void> {
+    if (session.comments.length > 0 || !session.projectId) {
+      return;
+    }
+
+    try {
+      const comments = await this.collaborationService.getProjectComments(session.projectId);
+      session.comments = comments.map((comment) =>
+        this.mapProjectCommentToSessionComment(comment, normalizedUrl),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to load comments for ${normalizedUrl}: ${message}`);
+    }
+  }
+
+  private notifyPageJoin(client: Socket, normalizedUrl: string, user: UserInfo): void {
+    client.to(normalizedUrl).emit('user-joined', {
+      userId: user.id,
+      username: user.username,
+      avatar: user.avatar,
+    });
+  }
+
+  private buildCursorData(user: UserInfo, data: CursorMoveMessage): CursorPosition {
+    const color = data.color || this.generateColor(user.id);
+
+    return {
+      userId: user.id,
+      username: user.username,
+      x: data.x,
+      y: data.y,
+      absoluteX: data.scrollX ? data.x + data.scrollX : data.x,
+      absoluteY: data.scrollY ? data.y + data.scrollY : data.y,
+      elementX: data.elementX,
+      elementY: data.elementY,
+      viewport: data.viewport,
+      color,
+      timestamp: Date.now(),
+    };
+  }
+
+  private broadcastCursorMove(
+    client: Socket,
+    normalizedUrl: string,
+    cursorData: CursorPosition,
+  ): void {
+    client.to(normalizedUrl).emit('cursor:update', cursorData);
+  }
+
+  private persistCursorPosition(
+    projectId: string,
+    user: UserInfo,
+    data: CursorMoveMessage,
+    color?: string,
+  ): void {
+    void this.collaborationService.updateCursorPosition(projectId, user.id, user.username, {
+      position: { x: data.x, y: data.y },
+      color,
+    });
+  }
+
+  private async createSessionComment({
+    session,
+    normalizedUrl,
+    projectId,
+    user,
+    data,
+  }: {
+    session: ExtensionSession;
+    normalizedUrl: string;
+    projectId: string;
+    user: UserInfo;
+    data: CommentCreateMessage;
+  }): Promise<SessionComment> {
+    const comment = await this.collaborationService.createComment(
+      projectId,
+      user.id,
+      user.username,
+      {
+        content: data.content,
+        position: data.position,
+      },
+    );
+
+    const sessionComment: SessionComment = {
+      id: comment.id,
+      userId: comment.userId ?? comment.user_id,
+      username: comment.username,
+      content: comment.content,
+      position: comment.position,
+      timestamp: new Date(),
+      url: normalizedUrl,
+      xpath: data.xpath,
+    };
+
+    session.comments.push(sessionComment);
+    return sessionComment;
+  }
+
+  private mapProjectCommentToSessionComment(
+    comment: ProjectCommentPayload,
+    normalizedUrl: string,
+  ): SessionComment {
+    return {
+      id: comment.id,
+      userId: comment.userId ?? comment.user_id ?? '',
+      username: comment.username,
+      content: comment.content,
+      position: comment.position,
+      timestamp: comment.created_at ? new Date(comment.created_at) : new Date(),
+      url: normalizedUrl,
+    };
+  }
+
   private cleanupEmptySession(session: ExtensionSession, url: string): void {
     if (session.projectId) {
       this.projectIdUrlMap.delete(session.projectId);

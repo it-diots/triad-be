@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/naming-convention */
-// @ts-nocheck
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -282,6 +279,7 @@ export class CommentThreadResponseDto {
   status: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const CollaborationDocsModels = [
   CursorPositionDto,
   CursorVelocityDto,

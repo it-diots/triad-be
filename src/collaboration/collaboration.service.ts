@@ -1,12 +1,3 @@
-/* eslint-disable max-lines */
-/* eslint-disable max-params */
-/* eslint-disable max-lines-per-function */
-/* eslint-disable require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 import { createHash } from 'crypto';
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -263,6 +254,25 @@ export class CollaborationService {
   }
 
   /**
+   * 프로젝트의 코멘트 스레드 조회
+   */
+  async getCommentThreads(projectId: string): Promise<CommentThread[]> {
+    try {
+      const threads = await this.commentThreadRepository.find({
+        where: { projectId },
+        relations: ['comments'],
+        order: { createdAt: 'DESC' },
+      });
+
+      return threads;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`코멘트 스레드 조회 실패: ${errorMessage}`);
+      throw error;
+    }
+  }
+
+  /**
    * 프로젝트의 활성 세션 조회
    */
   async getActiveSessions(projectId: string): Promise<ProjectSession[]> {
@@ -324,30 +334,34 @@ export class CollaborationService {
       // 각 mutation 처리
       for (const mutation of mutationData.mutations) {
         // Mutation 엔티티 생성
-        // @ts-ignore
         const mutationEntity = this.mutationRepository.create({
           projectId,
-          profileId: mutationData.profileID,
-          clientId: mutationData.clientID,
-          mutationId: mutation.id,
-          mutationName: mutation.name,
-          args: mutation.args,
-          timestamp: mutation.timestamp,
-          pushVersion: mutationData.pushVersion || 0,
-          schemaVersion: mutationData.schemaVersion || '',
-          status: 'pending',
+          userId: mutationData.profileID, // profileId를 userId로 매핑
+          type: 'added', // 기본값 설정
+          metadata: {
+            clientId: mutationData.clientID,
+            mutationId: mutation.id,
+            mutationName: mutation.name,
+            args: mutation.args,
+            pushVersion: mutationData.pushVersion || 0,
+            schemaVersion: mutationData.schemaVersion || '',
+            status: 'pending',
+          },
+          timestamp: new Date(mutation.timestamp),
         });
 
         // createCommentThread mutation 처리
         if (mutation.name === 'createCommentThread' && mutation.args) {
           const threadData = mutation.args as unknown as CreateCommentThreadDto;
           await this.createCommentThreadWithCoordinates(projectId, threadData);
-          // @ts-ignore
-          mutationEntity.status = 'processed';
+          // status를 metadata에 업데이트
+          if (mutationEntity.metadata) {
+            mutationEntity.metadata.status = 'processed';
+          }
         }
 
-        // @ts-ignore
-        processedMutations.push(await this.mutationRepository.save(mutationEntity));
+        const savedMutation = await this.mutationRepository.save(mutationEntity);
+        processedMutations.push(savedMutation);
       }
 
       return {
@@ -421,7 +435,7 @@ export class CollaborationService {
    */
   private urlToProjectId(url: string): string {
     const hash = createHash('sha256').update(url).digest();
-    const bytes = Buffer.from(hash.slice(0, 16));
+    const bytes = Buffer.from(hash.subarray(0, 16));
 
     // Use UUIDv5 layout for deterministic project IDs
     bytes[6] = (bytes[6] & 0x0f) | 0x50; // set version to 5
@@ -450,29 +464,17 @@ export class CollaborationService {
   /**
    * 코멘트 스레드 생성
    */
-  private async createCommentThread(
+  private createCommentThread(
     projectId: string,
     threadData: CreateCommentThreadDto,
   ): Promise<CommentThread> {
-    // @ts-ignore
     const thread = this.commentThreadRepository.create({
-      shortId: threadData.id,
       projectId,
-      nodeId: threadData.nodeId,
-      x: threadData.x,
-      y: threadData.y,
-      page: threadData.page,
+      url: threadData.deploymentUrl || threadData.page,
       pageTitle: threadData.pageTitle,
-      userAgent: threadData.userAgent,
-      screenWidth: threadData.screenWidth,
-      screenHeight: threadData.screenHeight,
-      devicePixelRatio: threadData.devicePixelRatio,
-      deploymentUrl: threadData.deploymentUrl,
-      draftMode: threadData.draftMode,
-      status: 'open',
+      isResolved: false,
     });
 
-    // @ts-ignore
     return this.commentThreadRepository.save(thread);
   }
 
@@ -494,7 +496,7 @@ export class CollaborationService {
       commitSha: threadData.firstComment.commitSha,
       href: threadData.firstComment.href,
       leftOnLocalhost: threadData.firstComment.leftOnLocalhost,
-      deploymentId: null, // Deprecated field
+      deploymentId: threadData.firstComment.deployment?.id || undefined, // deployment 객체에서 id 추출
       position: { x: threadData.x, y: threadData.y },
     });
 

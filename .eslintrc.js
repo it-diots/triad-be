@@ -50,6 +50,7 @@ module.exports = {
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
     '@typescript-eslint/no-non-null-assertion': 'error',
+    '@typescript-eslint/no-unsafe-assignment': 'off',
 
     // 네이밍 컨벤션
     '@typescript-eslint/naming-convention': [
@@ -173,7 +174,7 @@ module.exports = {
     // 복잡도 관련 규칙
     complexity: ['error', 10],
     'max-depth': ['error', 4],
-    'max-lines': ['warn', 600],
+    'max-lines': ['warn', 900],
     'max-lines-per-function': ['error', 50],
     'max-params': ['error', 4],
   },
@@ -212,6 +213,13 @@ module.exports = {
       rules: {
         '@typescript-eslint/member-ordering': 'off',
         'brace-style': 'off', // Prettier와 충돌 방지
+      },
+    },
+    {
+      // Nest 서비스는 다수의 의존성을 주입하므로 파라미터 제한을 완화
+      files: ['**/*.service.ts'],
+      rules: {
+        'max-params': 'off',
       },
     },
   ],

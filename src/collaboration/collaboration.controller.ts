@@ -1,11 +1,3 @@
-/* eslint-disable max-lines */
-/* eslint-disable max-params */
-/* eslint-disable max-lines-per-function */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// @ts-nocheck
 import {
   Body,
   Controller,
@@ -286,7 +278,6 @@ export class CollaborationController {
   @ApiParam({ name: 'projectId', description: '프로젝트 ID' })
   @ApiOkResponse({ description: '조회 성공', type: [CommentThreadResponseDto] })
   getCommentThreads(@Param('projectId') projectId: string): Promise<CommentThread[]> {
-    // @ts-ignore
     return this.collaborationService.getCommentThreads(projectId);
   }
 }

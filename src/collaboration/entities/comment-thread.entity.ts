@@ -16,11 +16,15 @@ import {
 @Index(['url'])
 @Index(['isResolved'])
 export class CommentThread {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', { comment: '코멘트 스레드 고유 ID' })
   id: string;
 
   // 프로젝트 참조
-  @Column({ name: 'project_id', type: 'uuid' })
+  @Column({
+    name: 'project_id',
+    type: 'uuid',
+    comment: '프로젝트 ID',
+  })
   projectId: string;
 
   @ManyToOne('Project', 'commentThreads', { onDelete: 'CASCADE' })
@@ -28,20 +32,46 @@ export class CommentThread {
   project: unknown;
 
   // URL 정보
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    comment: '코멘트 스레드 URL',
+  })
   url?: string;
 
-  @Column({ name: 'page_title', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'page_title',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    comment: '페이지 제목',
+  })
   pageTitle?: string;
 
   // 해결 상태
-  @Column({ name: 'is_resolved', type: 'boolean', default: false })
+  @Column({
+    name: 'is_resolved',
+    type: 'boolean',
+    default: false,
+    comment: '해결 상태',
+  })
   isResolved: boolean;
 
-  @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'resolved_at',
+    type: 'timestamp',
+    nullable: true,
+    comment: '해결 시간',
+  })
   resolvedAt?: Date;
 
-  @Column({ name: 'resolved_by', type: 'uuid', nullable: true })
+  @Column({
+    name: 'resolved_by',
+    type: 'uuid',
+    nullable: true,
+    comment: '해결한 사용자 ID',
+  })
   resolvedBy?: string;
 
   @ManyToOne('User', { nullable: true })
@@ -56,12 +86,21 @@ export class CommentThread {
   comments: unknown[];
 
   // 타임스탬프
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({
+    name: 'created_at',
+    comment: '생성 시간',
+  })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({
+    name: 'updated_at',
+    comment: '수정 시간',
+  })
   updatedAt: Date;
 
-  @DeleteDateColumn({ name: 'deleted_at' })
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    comment: '삭제 시간 (Soft Delete)',
+  })
   deletedAt?: Date;
 }

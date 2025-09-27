@@ -1,7 +1,7 @@
-import { Controller, Get, UseGuards, Req, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags, ApiOperation, ApiResponse, ApiExcludeEndpoint } from '@nestjs/swagger';
-import { Response, Request } from 'express';
+import { ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 
 import { User } from '../users/entities/user.entity';
 
@@ -14,7 +14,7 @@ interface AuthRequest extends Request {
   user: User;
 }
 
-@ApiTags('OAuth')
+@ApiTags('OAuth (미구현 상태)')
 @Controller('auth')
 export class OAuthController {
   constructor(
