@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * 기본 응답 DTO
+ * API 응답의 기본 구조를 정의하는 제네릭 클래스
+ */
 export class BaseResponseDto<T = unknown> {
+  /**
+   * 응답 성공 여부
+   */
   @ApiProperty({
     description: '응답 성공 여부',
     type: Boolean,
@@ -8,6 +15,9 @@ export class BaseResponseDto<T = unknown> {
   })
   success: boolean;
 
+  /**
+   * 응답 데이터
+   */
   @ApiProperty({
     description: '응답 데이터',
     required: false,
@@ -15,6 +25,9 @@ export class BaseResponseDto<T = unknown> {
   })
   data?: T;
 
+  /**
+   * 응답 메시지
+   */
   @ApiProperty({
     description: '응답 메시지',
     type: String,
@@ -31,7 +44,14 @@ export class BaseResponseDto<T = unknown> {
   }
 }
 
+/**
+ * 에러 응답 DTO
+ * API 에러 응답의 구조를 정의하는 클래스
+ */
 export class ErrorResponseDto {
+  /**
+   * 응답 성공 여부 (에러 시 항상 false)
+   */
   @ApiProperty({
     description: '응답 성공 여부',
     type: Boolean,
@@ -39,6 +59,9 @@ export class ErrorResponseDto {
   })
   success: boolean;
 
+  /**
+   * 에러 정보
+   */
   @ApiProperty({
     description: '에러 정보',
     type: Object,
@@ -61,7 +84,14 @@ export class ErrorResponseDto {
   }
 }
 
+/**
+ * 페이지네이션 DTO
+ * 페이지네이션 정보를 정의하는 클래스
+ */
 export class PaginationDto {
+  /**
+   * 페이지당 항목 수
+   */
   @ApiProperty({
     description: '페이지당 항목 수',
     type: Number,
@@ -72,6 +102,9 @@ export class PaginationDto {
   })
   limit: number;
 
+  /**
+   * 시작 위치 (0부터 시작)
+   */
   @ApiProperty({
     description: '시작 위치 (0부터 시작)',
     type: Number,
@@ -81,6 +114,9 @@ export class PaginationDto {
   })
   offset: number;
 
+  /**
+   * 전체 항목 수
+   */
   @ApiProperty({
     description: '전체 항목 수',
     type: Number,
@@ -95,7 +131,14 @@ export class PaginationDto {
   }
 }
 
+/**
+ * 페이지네이션 응답 DTO
+ * 페이지네이션된 데이터 목록을 위한 제네릭 클래스
+ */
 export class PaginatedResponseDto<T> extends PaginationDto {
+  /**
+   * 데이터 목록
+   */
   @ApiProperty({
     description: '데이터 목록',
     type: Array,

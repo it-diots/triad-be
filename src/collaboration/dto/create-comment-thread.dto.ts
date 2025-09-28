@@ -137,6 +137,10 @@ class FirstCommentDto {
   leftOnLocalhost: boolean;
 }
 
+/**
+ * 코멘트 스레드 생성 DTO
+ * 새로운 코멘트 스레드를 생성할 때 사용되는 데이터
+ */
 export class CreateCommentThreadDto {
   @ApiProperty({
     description: '짧은 식별 번호',

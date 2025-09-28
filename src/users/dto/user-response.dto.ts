@@ -3,8 +3,15 @@ import { Exclude, Expose } from 'class-transformer';
 
 import { AuthProvider, UserRole, UserStatus } from '../entities/user.entity';
 
+/**
+ * 사용자 응답 DTO
+ * 사용자 정보를 클라이언트에 반환할 때 사용 (비밀번호 제외)
+ */
 @Exclude()
 export class UserResponseDto {
+  /**
+   * 사용자 고유 식별자 (UUID)
+   */
   @ApiProperty({
     description: '사용자 고유 식별자 (UUID)',
     type: String,
@@ -14,6 +21,9 @@ export class UserResponseDto {
   @Expose()
   id: string;
 
+  /**
+   * 사용자 이메일 주소
+   */
   @ApiProperty({
     description: '사용자 이메일 주소',
     type: String,
@@ -23,6 +33,9 @@ export class UserResponseDto {
   @Expose()
   email: string;
 
+  /**
+   * 사용자명
+   */
   @ApiProperty({
     description: '사용자명',
     type: String,
@@ -62,6 +75,9 @@ export class UserResponseDto {
   @Expose()
   avatar?: string;
 
+  /**
+   * 사용자 역할
+   */
   @ApiProperty({
     description: '사용자 역할',
     enum: UserRole,
@@ -71,6 +87,9 @@ export class UserResponseDto {
   @Expose()
   role: UserRole;
 
+  /**
+   * 계정 상태
+   */
   @ApiProperty({
     description: '계정 상태',
     enum: UserStatus,

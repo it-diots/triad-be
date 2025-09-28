@@ -27,6 +27,10 @@ class MutationDto {
   timestamp: number;
 }
 
+/**
+ * 뮤테이션 생성 DTO
+ * 협업 환경에서 발생하는 변경사항을 생성할 때 사용되는 데이터
+ */
 export class CreateMutationDto {
   @IsString()
   profileID: string;

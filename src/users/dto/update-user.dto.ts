@@ -3,9 +3,16 @@ import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 import { CreateUserDto } from './create-user.dto';
 
+/**
+ * 사용자 수정 DTO
+ * 기존 사용자 정보를 업데이트할 때 사용 (이메일과 비밀번호 제외)
+ */
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['email', 'password'] as const),
 ) {
+  /**
+   * 사용자 프로필 이미지 URL (선택사항)
+   */
   @ApiProperty({
     description: '사용자 프로필 이미지 URL',
     type: String,

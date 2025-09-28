@@ -22,11 +22,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { CommentThreadResponseDto as CommonCommentThreadResponseDto } from '../common/dto/response.dto';
+
 import { CollaborationService } from './collaboration.service';
 import {
   CollaborationDocsModels,
   CommentResponseDto,
-  CommentThreadResponseDto,
   CreateCommentRequestDto,
   JoinProjectResponseDto,
   MouseClickRequestDto,
@@ -37,7 +38,6 @@ import {
   UpdateCursorRequestDto,
 } from './dto/collaboration-docs.dto';
 import { CreateMutationDto } from './dto/create-mutation.dto';
-import { CommentThread } from './entities/comment-thread.entity';
 import {
   Comment,
   JoinProjectDto,
@@ -276,8 +276,10 @@ export class CollaborationController {
     description: '프로젝트의 모든 코멘트 스레드를 좌표 정보와 함께 조회합니다',
   })
   @ApiParam({ name: 'projectId', description: '프로젝트 ID' })
-  @ApiOkResponse({ description: '조회 성공', type: [CommentThreadResponseDto] })
-  getCommentThreads(@Param('projectId') projectId: string): Promise<CommentThread[]> {
-    return this.collaborationService.getCommentThreads(projectId);
+  @ApiOkResponse({ description: '조회 성공', type: [CommonCommentThreadResponseDto] })
+  getCommentThreadsAndTransform(
+    @Param('projectId') projectId: string,
+  ): Promise<CommonCommentThreadResponseDto[]> {
+    return this.collaborationService.getCommentThreadsAndTransform(projectId);
   }
 }

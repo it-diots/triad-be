@@ -2,7 +2,14 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
+/**
+ * 로그인 요청 DTO
+ * 사용자 로그인을 위한 이메일과 비밀번호 정보
+ */
 export class LoginDto {
+  /**
+   * 로그인할 사용자의 이메일 주소
+   */
   @ApiProperty({
     description: '로그인할 사용자의 이메일 주소',
     type: String,
@@ -15,6 +22,9 @@ export class LoginDto {
   @Transform(({ value }: { value: string }) => value.toLowerCase())
   email: string;
 
+  /**
+   * 로그인 비밀번호
+   */
   @ApiProperty({
     description: '로그인 비밀번호',
     type: String,

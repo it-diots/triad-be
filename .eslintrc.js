@@ -119,7 +119,6 @@ module.exports = {
     'no-var': 'error',
     eqeqeq: ['error', 'always'],
     curly: ['error', 'all'],
-    'brace-style': ['error', '1tbs'],
     'no-throw-literal': 'error',
     'prefer-promise-reject-errors': 'error',
     'no-return-await': 'error',

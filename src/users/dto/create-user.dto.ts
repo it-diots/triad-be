@@ -10,7 +10,14 @@ import {
   MinLength,
 } from 'class-validator';
 
+/**
+ * 사용자 생성 DTO
+ * 새로운 사용자 계정을 생성할 때 필요한 정보
+ */
 export class CreateUserDto {
+  /**
+   * 사용자 이메일 주소 (고유값)
+   */
   @ApiProperty({
     description: '사용자 이메일 주소 (고유값)',
     type: String,
@@ -23,6 +30,9 @@ export class CreateUserDto {
   @Transform(({ value }: { value: string }) => value.toLowerCase())
   email: string;
 
+  /**
+   * 사용자 비밀번호 (최소 8자, 대소문자, 숫자, 특수문자 포함)
+   */
   @ApiProperty({
     description: '사용자 비밀번호 (최소 8자, 대소문자, 숫자, 특수문자 포함)',
     type: String,
@@ -41,6 +51,9 @@ export class CreateUserDto {
   })
   password: string;
 
+  /**
+   * 사용자명 (3-20자, 영문자, 숫자, 언더스코어, 하이픈만 허용, 고유값)
+   */
   @ApiProperty({
     description: '사용자명 (3-20자, 영문자, 숫자, 언더스코어, 하이픈만 허용, 고유값)',
     type: String,
@@ -60,6 +73,9 @@ export class CreateUserDto {
   @Transform(({ value }: { value: string }) => value.toLowerCase())
   username: string;
 
+  /**
+   * 사용자 이름 (선택사항)
+   */
   @ApiProperty({
     description: '사용자 이름 (선택)',
     type: String,
@@ -73,6 +89,9 @@ export class CreateUserDto {
   @MaxLength(100, { message: '이름은 최대 100자까지 가능합니다' })
   firstName?: string;
 
+  /**
+   * 사용자 성 (선택사항)
+   */
   @ApiProperty({
     description: '사용자 성 (선택)',
     type: String,

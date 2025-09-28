@@ -4,6 +4,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { CommentThreadResponseDto, ProjectSessionResponseDto } from '../common/dto/response.dto';
+import { TransformUtil } from '../common/utils/transform.util';
+
 import { CreateCommentThreadDto } from './dto/create-comment-thread.dto';
 import { CreateMutationDto } from './dto/create-mutation.dto';
 import { CommentThread } from './entities/comment-thread.entity';
@@ -501,5 +504,39 @@ export class CollaborationService {
     });
 
     await this.commentRepository.save(comment);
+  }
+
+  // DTO 변환 메서드들
+  /**
+   * CommentThread 엔티티를 CommentThreadResponseDto로 변환
+   */
+  toCommentThreadResponseDto(thread: CommentThread): CommentThreadResponseDto {
+    return TransformUtil.toCommentThreadResponseDto(thread);
+  }
+
+  /**
+   * ProjectSession 엔티티를 ProjectSessionResponseDto로 변환
+   */
+  toProjectSessionResponseDto(session: ProjectSessionEntity): ProjectSessionResponseDto {
+    return TransformUtil.toProjectSessionResponseDto(session);
+  }
+
+  /**
+   * 코멘트 스레드 조회 후 DTO로 변환하여 반환
+   */
+  async getCommentThreadsAndTransform(projectId: string): Promise<CommentThreadResponseDto[]> {
+    try {
+      const threads = await this.commentThreadRepository.find({
+        where: { projectId },
+        relations: ['comments', 'comments.user', 'comments.resolver', 'resolver'],
+        order: { createdAt: 'DESC' },
+      });
+
+      return threads.map((thread) => this.toCommentThreadResponseDto(thread));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`코멘트 스레드 조회 실패: ${errorMessage}`);
+      throw error;
+    }
   }
 }

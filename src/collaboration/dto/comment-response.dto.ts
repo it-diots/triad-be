@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 
+/**
+ * 코멘트 응답 DTO
+ * 코멘트 정보를 클라이언트에 반환할 때 사용
+ */
 export class CommentResponseDto {
   @ApiProperty({
     description: '코멘트 고유 식별자 (UUID)',

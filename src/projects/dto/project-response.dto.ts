@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { UserResponseDto } from '../../users/dto/user-response.dto';
 
+/**
+ * 프로젝트 설정 DTO
+ * 프로젝트의 설정 정보를 나타내는 클래스
+ */
 export class ProjectSettingsDto {
   @ApiProperty({
     description: '코멘트 허용 여부',
@@ -34,6 +38,10 @@ export class ProjectSettingsDto {
   isPublic: boolean;
 }
 
+/**
+ * 프로젝트 응답 DTO
+ * 프로젝트 정보를 클라이언트에 반환할 때 사용
+ */
 export class ProjectResponseDto {
   @ApiProperty({
     description: '프로젝트 고유 식별자 (UUID)',

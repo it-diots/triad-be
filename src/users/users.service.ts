@@ -2,6 +2,15 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { UserSearchRequestDto } from '../common/dto/request.dto';
+import {
+  UserListResponseDto,
+  UserProfileResponseDto,
+  UserResponseDto,
+  UserSummaryResponseDto,
+} from '../common/dto/response.dto';
+import { TransformUtil } from '../common/utils/transform.util';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthProvider, User } from './entities/user.entity';
@@ -160,5 +169,106 @@ export class UsersService {
     }
 
     return username;
+  }
+
+  // DTO 변환 메서드들
+  /**
+   * User 엔티티를 UserResponseDto로 변환
+   */
+  toUserResponseDto(user: User): UserResponseDto {
+    return TransformUtil.toUserResponseDto(user);
+  }
+
+  /**
+   * User 엔티티를 UserProfileResponseDto로 변환
+   */
+  toUserProfileResponseDto(user: User): UserProfileResponseDto {
+    return TransformUtil.toUserProfileResponseDto(user);
+  }
+
+  /**
+   * User 엔티티를 UserSummaryResponseDto로 변환
+   */
+  toUserSummaryResponseDto(user: User): UserSummaryResponseDto {
+    return TransformUtil.toUserSummaryResponseDto(user);
+  }
+
+  /**
+   * 사용자 목록을 검색하고 DTO로 변환하여 반환
+   */
+  async findAllWithSearch(searchDto: UserSearchRequestDto): Promise<UserListResponseDto> {
+    const queryBuilder = this.userRepository.createQueryBuilder('user');
+
+    // 검색어 필터링
+    if (searchDto.search) {
+      queryBuilder.andWhere(
+        '(user.username LIKE :search OR user.firstName LIKE :search OR user.lastName LIKE :search OR user.email LIKE :search)',
+        { search: `%${searchDto.search}%` },
+      );
+    }
+
+    // 역할 필터링
+    if (searchDto.role) {
+      queryBuilder.andWhere('user.role = :role', { role: searchDto.role });
+    }
+
+    // 상태 필터링
+    if (searchDto.status) {
+      queryBuilder.andWhere('user.status = :status', { status: searchDto.status });
+    }
+
+    // 인증 제공자 필터링
+    if (searchDto.provider) {
+      queryBuilder.andWhere('user.provider = :provider', { provider: searchDto.provider });
+    }
+
+    // 페이지네이션
+    const page = searchDto.page || 1;
+    const limit = searchDto.limit || 20;
+    const skip = (page - 1) * limit;
+
+    queryBuilder.skip(skip).take(limit);
+    queryBuilder.orderBy('user.createdAt', 'DESC');
+
+    const [users, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      users: users.map((user) => this.toUserResponseDto(user)),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  /**
+   * 사용자 생성 후 DTO로 변환하여 반환
+   */
+  async createAndTransform(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    const user = await this.create(createUserDto);
+    return this.toUserResponseDto(user);
+  }
+
+  /**
+   * 사용자 업데이트 후 DTO로 변환하여 반환
+   */
+  async updateAndTransform(id: string, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
+    const user = await this.update(id, updateUserDto);
+    return this.toUserResponseDto(user);
+  }
+
+  /**
+   * 사용자 조회 후 DTO로 변환하여 반환
+   */
+  async findOneAndTransform(id: string): Promise<UserResponseDto> {
+    const user = await this.findOne(id);
+    return this.toUserResponseDto(user);
+  }
+
+  /**
+   * 사용자 프로필 조회 후 DTO로 변환하여 반환
+   */
+  async getProfileAndTransform(id: string): Promise<UserProfileResponseDto> {
+    const user = await this.findOne(id);
+    return this.toUserProfileResponseDto(user);
   }
 }

@@ -59,8 +59,8 @@ export const apiPropertyPresets = {
   }),
 
   // URL 필드
-  url: (required = false): ApiPropertyOptions => ({
-    description: 'URL 주소',
+  url: (description = 'URL 주소', required = false): ApiPropertyOptions => ({
+    description,
     type: String,
     format: 'url',
     example: 'https://example.com',
@@ -102,6 +102,26 @@ export const apiPropertyPresets = {
     nullable: true,
   }),
 
+  // 일반적인 날짜/시간 필드
+  dateTime: (description: string, required = true): ApiPropertyOptions => ({
+    description,
+    type: Date,
+    format: 'date-time',
+    example: '2024-01-01T00:00:00.000Z',
+    required,
+    nullable: !required,
+  }),
+
+  // 아바타 URL
+  avatar: (): ApiPropertyOptions => ({
+    description: '프로필 이미지 URL',
+    type: String,
+    format: 'uri',
+    example: 'https://example.com/avatar.jpg',
+    required: false,
+    nullable: true,
+  }),
+
   // 불리언 필드
   boolean: (description: string, defaultValue = false): ApiPropertyOptions => ({
     description,
@@ -113,7 +133,7 @@ export const apiPropertyPresets = {
   // 문자열 필드
   string: (
     description: string,
-    example: 'example',
+    example = 'example',
     options?: Record<string, unknown>,
   ): ApiPropertyOptions => ({
     description,
@@ -150,8 +170,7 @@ export const apiPropertyPresets = {
   // Enum 필드
   enum: <T>(description: string, enumType: Record<string, T>, example: T): ApiPropertyOptions => ({
     description,
-    enum: enumType,
-    enumName: enumType.constructor.name,
+    enum: Object.values(enumType),
     example,
   }),
 

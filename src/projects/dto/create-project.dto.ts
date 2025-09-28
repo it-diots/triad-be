@@ -9,6 +9,10 @@ import {
   MinLength,
 } from 'class-validator';
 
+/**
+ * 프로젝트 생성 DTO
+ * 새로운 프로젝트를 생성할 때 필요한 정보
+ */
 export class CreateProjectDto {
   @ApiProperty({
     description: '프로젝트 이름',

@@ -1,21 +1,29 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
-  Delete,
-  ParseUUIDPipe,
   ClassSerializerInterceptor,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserResponseDto } from './dto/user-response.dto';
-import { User } from './entities/user.entity';
+import {
+  CreateUserRequestDto,
+  UpdateUserRequestDto,
+  UserSearchRequestDto,
+} from '../common/dto/request.dto';
+import {
+  UserListResponseDto,
+  UserProfileResponseDto,
+  UserResponseDto,
+} from '../common/dto/response.dto';
+
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -28,38 +36,42 @@ export class UsersController {
   @ApiOperation({ summary: '사용자 생성' })
   @ApiResponse({ status: 201, type: UserResponseDto })
   @ApiResponse({ status: 409, description: 'Email or username already exists' })
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    const user = await this.usersService.create(createUserDto);
-    return this.transformToDto(user);
+  createAndTransform(@Body() createUserDto: CreateUserRequestDto): Promise<UserResponseDto> {
+    return this.usersService.createAndTransform(createUserDto);
   }
 
   @Get()
-  @ApiOperation({ summary: '모든 사용자 조회' })
-  @ApiResponse({ status: 200, type: [UserResponseDto] })
-  async findAll(): Promise<UserResponseDto[]> {
-    const users = await this.usersService.findAll();
-    return users.map((user) => this.transformToDto(user));
+  @ApiOperation({ summary: '사용자 목록 조회 (검색 및 필터링 지원)' })
+  @ApiResponse({ status: 200, type: UserListResponseDto })
+  findAllWithSearch(@Query() searchDto: UserSearchRequestDto): Promise<UserListResponseDto> {
+    return this.usersService.findAllWithSearch(searchDto);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '사용자 조회' })
+  @ApiOperation({ summary: '사용자 상세 조회' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
-    const user = await this.usersService.findOne(id);
-    return this.transformToDto(user);
+  findOneAndTransform(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponseDto> {
+    return this.usersService.findOneAndTransform(id);
+  }
+
+  @Get(':id/profile')
+  @ApiOperation({ summary: '사용자 프로필 조회 (공개 정보만)' })
+  @ApiResponse({ status: 200, type: UserProfileResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getProfileAndTransform(@Param('id', ParseUUIDPipe) id: string): Promise<UserProfileResponseDto> {
+    return this.usersService.getProfileAndTransform(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: '사용자 수정' })
+  @ApiOperation({ summary: '사용자 정보 수정' })
   @ApiResponse({ status: 200, type: UserResponseDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async update(
+  updateAndTransform(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateUserRequestDto,
   ): Promise<UserResponseDto> {
-    const user = await this.usersService.update(id, updateUserDto);
-    return this.transformToDto(user);
+    return this.usersService.updateAndTransform(id, updateUserDto);
   }
 
   @Delete(':id')
@@ -68,23 +80,5 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found' })
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.usersService.remove(id);
-  }
-
-  private transformToDto(user: User): UserResponseDto {
-    const dto = new UserResponseDto();
-    dto.id = user.id;
-    dto.email = user.email;
-    dto.username = user.username;
-    dto.firstName = user.firstName;
-    dto.lastName = user.lastName;
-    dto.avatar = user.avatar;
-    dto.role = user.role;
-    dto.status = user.status;
-    dto.provider = user.provider;
-    dto.emailVerifiedAt = user.emailVerifiedAt;
-    dto.lastLoginAt = user.lastLoginAt;
-    dto.createdAt = user.createdAt;
-    dto.updatedAt = user.updatedAt;
-    return dto;
   }
 }
