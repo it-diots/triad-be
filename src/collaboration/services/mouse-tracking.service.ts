@@ -2,35 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { MousePosition, MousePath } from '../types/collaboration.types';
-
-interface MouseTrackingState {
-  lastPosition: MousePosition;
-  lastUpdate: number;
-  trail: MousePosition[];
-  velocity: { dx: number; dy: number };
-  isIdle: boolean;
-  color: string;
-}
-
-interface MouseData {
-  userId: string;
-  username: string;
-  position: MousePosition;
-  color?: string;
-}
-
-interface MouseBatchData {
-  userId: string;
-  username: string;
-  positions: MousePosition[];
-}
-
-interface MouseClickData {
-  userId: string;
-  username: string;
-  position: MousePosition;
-  clickType: 'left' | 'right' | 'middle';
-}
+import {
+  MouseTrackingState,
+  MouseData,
+  MouseBatchData,
+  MouseClickData,
+} from '../types/mouse-tracking.types';
 
 @Injectable()
 export class MouseTrackingService {

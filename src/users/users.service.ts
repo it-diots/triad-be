@@ -159,18 +159,6 @@ export class UsersService {
     return null;
   }
 
-  private async generateUniqueUsername(baseUsername: string): Promise<string> {
-    let username = baseUsername;
-    let counter = 0;
-
-    while (await this.findByUsername(username)) {
-      counter++;
-      username = `${baseUsername}_${counter}`;
-    }
-
-    return username;
-  }
-
   // DTO 변환 메서드들
   /**
    * User 엔티티를 UserResponseDto로 변환
@@ -270,5 +258,17 @@ export class UsersService {
   async getProfileAndTransform(id: string): Promise<UserProfileResponseDto> {
     const user = await this.findOne(id);
     return this.toUserProfileResponseDto(user);
+  }
+
+  private async generateUniqueUsername(baseUsername: string): Promise<string> {
+    let username = baseUsername;
+    let counter = 0;
+
+    while (await this.findByUsername(username)) {
+      counter++;
+      username = `${baseUsername}_${counter}`;
+    }
+
+    return username;
   }
 }

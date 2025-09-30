@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 
 import { CommentThreadResponseDto as CommonCommentThreadResponseDto } from '../common/dto/response.dto';
+import { AuthRequest } from '../common/types/auth.types';
 
 import { CollaborationService } from './collaboration.service';
 import {
@@ -45,14 +46,6 @@ import {
   ProjectSession,
   UpdateCursorDto,
 } from './types/collaboration.types';
-
-interface AuthRequest {
-  user: {
-    userId: string;
-    username: string;
-    email: string;
-  };
-}
 
 @ApiTags('Collaboration')
 @Controller('collaboration')
