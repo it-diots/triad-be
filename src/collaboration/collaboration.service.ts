@@ -17,12 +17,17 @@ import { Project } from './entities/project.entity';
 import { CommentService } from './services/comment.service';
 import { MouseTrackingService } from './services/mouse-tracking.service';
 import {
+  JoinProjectResult,
+  MouseClickOptions,
+  LegacyProjectSession,
+  ProcessMutationsResult,
+  MutationMetadata,
+} from './types/collaboration.service.types';
+import {
   Comment,
   CreateCommentDto,
   JoinProjectDto,
-  MousePosition,
   MouseTrailDto,
-  ProjectSession,
   UpdateCursorDto,
 } from './types/collaboration.types';
 
@@ -52,7 +57,7 @@ export class CollaborationService {
     projectId: string,
     userId: string,
     userInfo: JoinProjectDto,
-  ): Promise<{ success: boolean; projectId: string; channelName: string; sessionId: string }> {
+  ): Promise<JoinProjectResult> {
     try {
       await this.ensureProjectExists(projectId, userId);
       const session = await this.createOrUpdateSession(projectId, userId, userInfo);
@@ -106,7 +111,7 @@ export class CollaborationService {
     url: string,
     userId: string,
     userInfo: JoinProjectDto,
-  ): Promise<{ success: boolean; projectId: string; channelName: string; sessionId: string }> {
+  ): Promise<JoinProjectResult> {
     // URL을 프로젝트 ID로 변환 (해시 또는 인코딩)
     const projectId = this.urlToProjectId(url);
     return this.joinProject(projectId, userId, userInfo);
@@ -172,15 +177,7 @@ export class CollaborationService {
   /**
    * 마우스 클릭 이벤트 처리
    */
-  handleMouseClick(
-    projectId: string,
-    options: {
-      userId: string;
-      username: string;
-      position: MousePosition;
-      clickType: 'left' | 'right' | 'middle';
-    },
-  ): Promise<void> {
+  handleMouseClick(projectId: string, options: MouseClickOptions): Promise<void> {
     try {
       void this.mouseTrackingService.handleMouseClick(projectId, {
         userId: options.userId,
@@ -278,7 +275,7 @@ export class CollaborationService {
   /**
    * 프로젝트의 활성 세션 조회
    */
-  async getActiveSessions(projectId: string): Promise<ProjectSession[]> {
+  async getActiveSessions(projectId: string): Promise<LegacyProjectSession[]> {
     try {
       const sessions = await this.sessionRepository.find({
         where: { projectId, isActive: true },
@@ -287,27 +284,29 @@ export class CollaborationService {
       });
 
       return Promise.resolve(
-        sessions.map((session) => ({
-          id: session.id,
-          projectId: session.projectId,
-          userId: session.userId,
-          username: session.username,
-          userEmail: session.userEmail,
-          userAvatar: session.userAvatar,
-          joinedAt: session.joinedAt,
-          lastActivity: session.lastActivity,
-          isActive: session.isActive,
-          cursorPosition: session.cursorPosition || null,
-          // Legacy fields
-          project_id: session.projectId,
-          user_id: session.userId,
-          is_active: session.isActive,
-          cursor_position: session.cursorPosition || undefined,
-          joined_at: session.joinedAt.toISOString(),
-          last_activity: session.lastActivity.toISOString(),
-          created_at: session.createdAt.toISOString(),
-          updated_at: session.updatedAt.toISOString(),
-        })),
+        sessions.map(
+          (session): LegacyProjectSession => ({
+            id: session.id,
+            projectId: session.projectId,
+            userId: session.userId,
+            username: session.username,
+            userEmail: session.userEmail,
+            userAvatar: session.userAvatar,
+            joinedAt: session.joinedAt,
+            lastActivity: session.lastActivity,
+            isActive: session.isActive,
+            cursorPosition: session.cursorPosition || null,
+            // Legacy fields
+            project_id: session.projectId,
+            user_id: session.userId,
+            is_active: session.isActive,
+            cursor_position: session.cursorPosition || undefined,
+            joined_at: session.joinedAt.toISOString(),
+            last_activity: session.lastActivity.toISOString(),
+            created_at: session.createdAt.toISOString(),
+            updated_at: session.updatedAt.toISOString(),
+          }),
+        ),
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -330,40 +329,12 @@ export class CollaborationService {
   async processMutations(
     projectId: string,
     mutationData: CreateMutationDto,
-  ): Promise<{ success: boolean; processedMutations: number }> {
+  ): Promise<ProcessMutationsResult> {
     const processedMutations: Mutation[] = [];
 
     try {
-      // 각 mutation 처리
       for (const mutation of mutationData.mutations) {
-        // Mutation 엔티티 생성
-        const mutationEntity = this.mutationRepository.create({
-          projectId,
-          userId: mutationData.profileID, // profileId를 userId로 매핑
-          type: 'added', // 기본값 설정
-          metadata: {
-            clientId: mutationData.clientID,
-            mutationId: mutation.id,
-            mutationName: mutation.name,
-            args: mutation.args,
-            pushVersion: mutationData.pushVersion || 0,
-            schemaVersion: mutationData.schemaVersion || '',
-            status: 'pending',
-          },
-          timestamp: new Date(mutation.timestamp),
-        });
-
-        // createCommentThread mutation 처리
-        if (mutation.name === 'createCommentThread' && mutation.args) {
-          const threadData = mutation.args as unknown as CreateCommentThreadDto;
-          await this.createCommentThreadWithCoordinates(projectId, threadData);
-          // status를 metadata에 업데이트
-          if (mutationEntity.metadata) {
-            mutationEntity.metadata.status = 'processed';
-          }
-        }
-
-        const savedMutation = await this.mutationRepository.save(mutationEntity);
+        const savedMutation = await this.processSingleMutation(projectId, mutationData, mutation);
         processedMutations.push(savedMutation);
       }
 
@@ -409,6 +380,62 @@ export class CollaborationService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`코멘트 스레드 조회 실패: ${errorMessage}`);
       throw error;
+    }
+  }
+
+  /**
+   * 단일 Mutation 처리
+   */
+  private async processSingleMutation(
+    projectId: string,
+    mutationData: CreateMutationDto,
+    mutation: { id: number; name: string; args: unknown; timestamp: number },
+  ): Promise<Mutation> {
+    const metadata: MutationMetadata = this.createMutationMetadata(mutationData, mutation);
+    const mutationEntity = this.mutationRepository.create({
+      projectId,
+      userId: mutationData.profileID,
+      type: 'added',
+      metadata,
+      timestamp: new Date(mutation.timestamp),
+    });
+
+    await this.handleCommentThreadMutation(projectId, mutation, mutationEntity);
+    return this.mutationRepository.save(mutationEntity);
+  }
+
+  /**
+   * Mutation 메타데이터 생성
+   */
+  private createMutationMetadata(
+    mutationData: CreateMutationDto,
+    mutation: { id: number; name: string; args: unknown },
+  ): MutationMetadata {
+    return {
+      clientId: mutationData.clientID,
+      mutationId: mutation.id,
+      mutationName: mutation.name,
+      args: mutation.args,
+      pushVersion: mutationData.pushVersion || 0,
+      schemaVersion: mutationData.schemaVersion || '',
+      status: 'pending',
+    };
+  }
+
+  /**
+   * CommentThread Mutation 처리
+   */
+  private async handleCommentThreadMutation(
+    projectId: string,
+    mutation: { name: string; args: unknown },
+    mutationEntity: Mutation,
+  ): Promise<void> {
+    if (mutation.name === 'createCommentThread' && mutation.args) {
+      const threadData = mutation.args as unknown as CreateCommentThreadDto;
+      await this.createCommentThreadWithCoordinates(projectId, threadData);
+      if (mutationEntity.metadata) {
+        mutationEntity.metadata.status = 'processed';
+      }
     }
   }
 

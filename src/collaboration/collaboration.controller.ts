@@ -39,11 +39,11 @@ import {
   UpdateCursorRequestDto,
 } from './dto/collaboration-docs.dto';
 import { CreateMutationDto } from './dto/create-mutation.dto';
+import { LegacyProjectSession } from './types/collaboration.service.types';
 import {
   Comment,
   JoinProjectDto,
   MouseTrailDto,
-  ProjectSession,
   UpdateCursorDto,
 } from './types/collaboration.types';
 
@@ -244,7 +244,7 @@ export class CollaborationController {
   })
   @ApiParam({ name: 'projectId', description: '프로젝트 ID' })
   @ApiOkResponse({ description: '조회 성공', type: [ProjectSessionResponseDto] })
-  getActiveSessions(@Param('projectId') projectId: string): Promise<ProjectSession[]> {
+  getActiveSessions(@Param('projectId') projectId: string): Promise<LegacyProjectSession[]> {
     return this.collaborationService.getActiveSessions(projectId);
   }
 

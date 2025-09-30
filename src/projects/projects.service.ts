@@ -9,6 +9,7 @@ import { TransformUtil } from '../common/utils/transform.util';
 
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { ProjectSettings } from './types/projects.service.types';
 
 @Injectable()
 export class ProjectsService {
@@ -21,14 +22,16 @@ export class ProjectsService {
    * 프로젝트 생성
    */
   create(createProjectDto: CreateProjectDto, userId: string): Promise<Project> {
+    const settings: ProjectSettings = {
+      allowComments: true,
+      allowGuests: true,
+      isPublic: true,
+    };
+
     const project = this.projectRepository.create({
       ...createProjectDto,
       ownerId: userId,
-      settings: {
-        allowComments: true,
-        allowGuests: true,
-        isPublic: true,
-      },
+      settings,
     });
 
     return this.projectRepository.save(project);

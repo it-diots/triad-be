@@ -14,6 +14,12 @@ import { TransformUtil } from '../common/utils/transform.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthProvider, User } from './entities/user.entity';
+import {
+  OAuthUserProfile,
+  OAuthProfileUpdate,
+  OAuthProviderLink,
+  NewOAuthUserProfile,
+} from './types/users.service.types';
 
 @Injectable()
 export class UsersService {
@@ -38,47 +44,21 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async createOAuthUser(profile: {
-    email: string;
-    provider: AuthProvider;
-    providerId: string;
-    username?: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-    providerData?: Record<string, unknown>;
-  }): Promise<User> {
+  async createOAuthUser(profile: OAuthUserProfile): Promise<User> {
+    // 1. 동일한 provider + providerId로 기존 사용자 찾기
     const existingUser = await this.findByProviderAndId(profile.provider, profile.providerId);
-
     if (existingUser) {
-      return existingUser;
+      return this.updateOAuthUserProfile(existingUser, profile);
     }
 
+    // 2. 같은 이메일의 사용자가 있는지 확인
     const userByEmail = await this.findByEmail(profile.email);
     if (userByEmail) {
-      if (userByEmail.provider !== profile.provider) {
-        throw new ConflictException(
-          `User with email ${profile.email} already exists with different provider`,
-        );
-      }
-      return userByEmail;
+      return this.linkOAuthProviderToExistingUser(userByEmail, profile);
     }
 
-    const username = profile.username || `${profile.provider.toLowerCase()}_${profile.providerId}`;
-
-    const user = this.userRepository.create({
-      email: profile.email,
-      username: await this.generateUniqueUsername(username),
-      provider: profile.provider,
-      providerId: profile.providerId,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      avatar: profile.avatar,
-      providerData: profile.providerData,
-      emailVerifiedAt: new Date(),
-    });
-
-    return this.userRepository.save(user);
+    // 3. 신규 사용자 생성
+    return this.createNewOAuthUser(profile);
   }
 
   findAll(): Promise<User[]> {
@@ -258,6 +238,90 @@ export class UsersService {
   async getProfileAndTransform(id: string): Promise<UserProfileResponseDto> {
     const user = await this.findOne(id);
     return this.toUserProfileResponseDto(user);
+  }
+
+  /**
+   * 기존 OAuth 사용자 프로필 업데이트
+   */
+  private async updateOAuthUserProfile(user: User, profile: OAuthProfileUpdate): Promise<User> {
+    let updated = false;
+
+    if (profile.avatar && profile.avatar !== user.avatar) {
+      user.avatar = profile.avatar;
+      updated = true;
+    }
+    if (profile.firstName && profile.firstName !== user.firstName) {
+      user.firstName = profile.firstName;
+      updated = true;
+    }
+    if (profile.lastName && profile.lastName !== user.lastName) {
+      user.lastName = profile.lastName;
+      updated = true;
+    }
+    if (profile.providerData) {
+      user.providerData = profile.providerData;
+      updated = true;
+    }
+
+    if (updated) {
+      await this.userRepository.save(user);
+    }
+
+    return user;
+  }
+
+  /**
+   * 기존 사용자에 OAuth provider 연동
+   */
+  private async linkOAuthProviderToExistingUser(
+    user: User,
+    profile: OAuthProviderLink,
+  ): Promise<User> {
+    const needsUpdate =
+      user.provider !== profile.provider || user.providerId !== profile.providerId;
+
+    if (needsUpdate) {
+      user.provider = profile.provider;
+      user.providerId = profile.providerId;
+
+      if (profile.avatar) {
+        user.avatar = profile.avatar;
+      }
+      if (profile.firstName) {
+        user.firstName = profile.firstName;
+      }
+      if (profile.lastName) {
+        user.lastName = profile.lastName;
+      }
+      if (profile.providerData) {
+        user.providerData = profile.providerData;
+      }
+
+      await this.userRepository.save(user);
+    }
+
+    return user;
+  }
+
+  /**
+   * 새 OAuth 사용자 생성
+   */
+  private async createNewOAuthUser(profile: NewOAuthUserProfile): Promise<User> {
+    const username = profile.username || `${profile.provider.toLowerCase()}_${profile.providerId}`;
+
+    const user = this.userRepository.create({
+      email: profile.email,
+      username: await this.generateUniqueUsername(username),
+      provider: profile.provider,
+      providerId: profile.providerId,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      avatar: profile.avatar,
+      providerData: profile.providerData,
+      emailVerifiedAt: new Date(),
+    });
+
+    return this.userRepository.save(user);
   }
 
   private async generateUniqueUsername(baseUsername: string): Promise<string> {
