@@ -67,10 +67,30 @@ const setupValidation = (app: NestExpressApplication): void => {
   );
 };
 
-const loadSequenceDiagram = (): string => {
+const loadSequenceDiagram = (logger: Logger): string => {
   try {
-    const sequencePath = path.join(process.cwd(), 'sequence.md');
-    const markdownContent = fs.readFileSync(sequencePath, 'utf-8');
+    // 우선순위: swagger-diagrams.md > sequence.md
+    const diagramFiles = ['swagger-diagrams.md', 'sequence.md'];
+    let markdownContent = '';
+    let loadedFile = '';
+
+    for (const file of diagramFiles) {
+      try {
+        const filePath = path.join(process.cwd(), file);
+        markdownContent = fs.readFileSync(filePath, 'utf-8');
+        loadedFile = file;
+        break;
+      } catch {
+        continue;
+      }
+    }
+
+    if (!markdownContent) {
+      logger.warn('No diagram files found (swagger-diagrams.md or sequence.md)');
+      return '';
+    }
+
+    logger.log(`Loaded diagram file: ${loadedFile}`);
 
     // Markdown-it 설정
     const md = new MarkdownIt({
@@ -87,7 +107,7 @@ const loadSequenceDiagram = (): string => {
 
     return md.render(markdownContent);
   } catch (error) {
-    console.error('Failed to load sequence.md:', error);
+    logger.error('Failed to load diagram files:', error);
     return '';
   }
 };
@@ -246,7 +266,7 @@ const setupSwagger = (
   const swaggerPath = configService.get<string>('app.swagger.path', 'api/docs');
 
   // Sequence diagram HTML 로드
-  const sequenceHtml = loadSequenceDiagram();
+  const sequenceHtml = loadSequenceDiagram(logger);
 
   // Swagger UI 커스터마이징
   SwaggerModule.setup(swaggerPath, app, document, {
