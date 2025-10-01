@@ -48,7 +48,8 @@ export class AuthService {
       throw new UnauthorizedException('Access Denied');
     }
 
-    return this.generateTokens(user);
+    // Access Token만 재발급, Refresh Token은 그대로 유지
+    return this.generateAccessToken(user);
   }
 
   validateUser(email: string, password: string): Promise<User | null> {
@@ -78,6 +79,31 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      tokenType: 'Bearer',
+      expiresIn: 900, // 15 minutes in seconds
+      user: this.transformUserToDto(user),
+    };
+  }
+
+  async generateAccessToken(user: User): Promise<TokenResponseDto> {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get<string>('jwt.secret'),
+      expiresIn: this.configService.get<string>('jwt.expiresIn', '15m'),
+    });
+
+    if (!user.refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    return {
+      accessToken,
+      refreshToken: user.refreshToken, // 기존 Refresh Token 그대로 반환
       tokenType: 'Bearer',
       expiresIn: 900, // 15 minutes in seconds
       user: this.transformUserToDto(user),
