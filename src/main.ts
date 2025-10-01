@@ -304,6 +304,11 @@ const bootstrap = async (): Promise<void> => {
   setupValidation(app);
   setupSwagger(app, configService, logger);
 
+  // Serve static files
+  app.useStaticAssets(path.join(__dirname, '..', 'public'), {
+    prefix: '/public/',
+  });
+
   // Start server
   const port = configService.get<number>('app.port', 3000);
   await app.listen(port);

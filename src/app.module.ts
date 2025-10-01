@@ -39,7 +39,7 @@ import { UsersModule } from './users/users.module';
 
     // Feature Modules
     UsersModule,
-    AuthModule,
+    AuthModule.register(),
     CollaborationModule,
     ProjectsModule,
   ],

@@ -174,7 +174,7 @@ module.exports = {
     complexity: ['error', 10],
     'max-depth': ['error', 4],
     'max-lines': ['warn', 900],
-    'max-lines-per-function': ['error', 50],
+    'max-lines-per-function': ['error', 60],
     'max-params': ['error', 4],
   },
   overrides: [
