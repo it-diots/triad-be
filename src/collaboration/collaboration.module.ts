@@ -27,7 +27,7 @@ import { MouseTrackingService } from './services/mouse-tracking.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: configService.get<string>('jwt.expiresIn', '15m'),
+          expiresIn: '15m',
         },
       }),
       inject: [ConfigService],

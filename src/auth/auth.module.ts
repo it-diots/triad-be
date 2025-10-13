@@ -61,7 +61,7 @@ export class AuthModule {
           useFactory: (configService: ConfigService) => ({
             secret: configService.get<string>('jwt.secret'),
             signOptions: {
-              expiresIn: configService.get<string>('jwt.expiresIn', '15m'),
+              expiresIn: '15m',
             },
           }),
           inject: [ConfigService],

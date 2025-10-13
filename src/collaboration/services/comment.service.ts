@@ -200,6 +200,9 @@ export class CommentService {
 
   /**
    * 특정 코멘트 조회
+   * @param projectId - 프로젝트 ID
+   * @param commentId - 코멘트 ID
+   * @returns 코멘트 정보 또는 null
    */
   async getCommentById(projectId: string, commentId: string): Promise<Comment | null> {
     const comment = await this.commentRepository.findOne({
@@ -211,7 +214,9 @@ export class CommentService {
   }
 
   /**
-   * 프로젝트 정리 (메모리 관리)
+   * 프로젝트 정리 - 프로젝트의 모든 코멘트 삭제 (Soft Delete)
+   * @param projectId - 프로젝트 ID
+   * @returns void
    */
   async cleanupProject(projectId: string): Promise<void> {
     await this.commentRepository.softDelete({ projectId });

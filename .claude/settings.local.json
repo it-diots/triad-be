@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm ls:*)",
+      "Bash(npm run start:dev:*)",
+      "Bash(rm:*)",
+      "Bash(npm install)",
+      "Bash(./node_modules/.bin/nest:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run lint)",
+      "Bash(npm run build)",
+      "Read(//Users/hyungjookim/Desktop/**)",
+      "Bash(ssh:*)",
+      "Bash(cat:*)",
+      "Bash(scp:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

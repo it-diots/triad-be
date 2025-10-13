@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
@@ -26,9 +26,36 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   async validate(req: Request, payload: JwtPayload): Promise<User> {
     const refreshToken = (req.body as { refreshToken: string }).refreshToken;
     const user = await this.usersService.findOne(payload.sub);
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'User not found',
+          error: 'Unauthorized',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
 
-    if (!user || !user.refreshToken || user.refreshToken !== refreshToken) {
-      throw new UnauthorizedException('Invalid refresh token');
+    if (!user.refreshToken) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Refresh token not found. Please login again',
+          error: 'Unauthorized',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    if (user.refreshToken !== refreshToken) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'Invalid refresh token',
+          error: 'Unauthorized',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     return user;

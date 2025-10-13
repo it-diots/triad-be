@@ -3,13 +3,15 @@ import { JwtModuleOptions } from '@nestjs/jwt';
 
 export default registerAs(
   'jwt',
-  (): JwtModuleOptions => ({
+  (): JwtModuleOptions & { refreshSecret: string; refreshExpiresIn: string } => ({
     secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-change-in-production',
     signOptions: {
-      expiresIn: process.env.JWT_EXPIRATION || '7d',
+      expiresIn: (process.env.JWT_EXPIRATION || '7d') as `${number}d` | `${number}m` | `${number}h`,
       issuer: 'triad-api',
       algorithm: 'HS256',
     },
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRATION || '30d',
   }),
 );
 

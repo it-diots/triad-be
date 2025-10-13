@@ -28,6 +28,12 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  /**
+   * 사용자 생성
+   * @param createUserDto - 사용자 생성 정보
+   * @returns 생성된 사용자 엔티티
+   * @throws ConflictException - 이메일 또는 사용자명이 이미 존재할 경우
+   */
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findOne({
       where: [{ email: createUserDto.email }, { username: createUserDto.username }],
@@ -44,6 +50,11 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
+  /**
+   * OAuth 사용자 생성 또는 기존 사용자와 연동
+   * @param profile - OAuth 프로필 정보
+   * @returns 생성되거나 연동된 사용자 엔티티
+   */
   async createOAuthUser(profile: OAuthUserProfile): Promise<User> {
     // 1. 동일한 provider + providerId로 기존 사용자 찾기
     const existingUser = await this.findByProviderAndId(profile.provider, profile.providerId);
@@ -61,6 +72,10 @@ export class UsersService {
     return this.createNewOAuthUser(profile);
   }
 
+  /**
+   * 모든 사용자 조회 (비밀번호 제외)
+   * @returns 사용자 목록
+   */
   findAll(): Promise<User[]> {
     return this.userRepository.find({
       select: [
@@ -78,6 +93,12 @@ export class UsersService {
     });
   }
 
+  /**
+   * 특정 사용자 조회
+   * @param id - 사용자 ID
+   * @returns 사용자 엔티티
+   * @throws NotFoundException - 사용자를 찾을 수 없을 경우
+   */
   async findOne(id: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
@@ -86,20 +107,43 @@ export class UsersService {
     return user;
   }
 
+  /**
+   * 이메일로 사용자 조회
+   * @param email - 이메일 주소
+   * @returns 사용자 엔티티 또는 null
+   */
   findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { email } });
   }
 
+  /**
+   * 사용자명으로 사용자 조회
+   * @param username - 사용자명
+   * @returns 사용자 엔티티 또는 null
+   */
   findByUsername(username: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { username } });
   }
 
+  /**
+   * OAuth Provider와 Provider ID로 사용자 조회
+   * @param provider - OAuth 제공자 (Google, GitHub 등)
+   * @param providerId - Provider에서 제공하는 사용자 ID
+   * @returns 사용자 엔티티 또는 null
+   */
   findByProviderAndId(provider: AuthProvider, providerId: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { provider, providerId },
     });
   }
 
+  /**
+   * 사용자 정보 수정
+   * @param id - 사용자 ID
+   * @param updateUserDto - 수정할 사용자 정보
+   * @returns 수정된 사용자 엔티티
+   * @throws ConflictException - 사용자명이 이미 존재할 경우
+   */
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
@@ -114,23 +158,45 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
+  /**
+   * 리프레시 토큰 업데이트
+   * @param id - 사용자 ID
+   * @param refreshToken - 리프레시 토큰 (null이면 제거)
+   * @returns void
+   */
   async updateRefreshToken(id: string, refreshToken: string | null): Promise<void> {
     await this.userRepository.update(id, {
       refreshToken: refreshToken || undefined,
     });
   }
 
+  /**
+   * 마지막 로그인 시간 업데이트
+   * @param id - 사용자 ID
+   * @returns void
+   */
   async updateLastLogin(id: string): Promise<void> {
     await this.userRepository.update(id, {
       lastLoginAt: new Date(),
     });
   }
 
+  /**
+   * 사용자 삭제 (Soft Delete)
+   * @param id - 사용자 ID
+   * @returns void
+   */
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     await this.userRepository.softRemove(user);
   }
 
+  /**
+   * 이메일과 비밀번호로 사용자 인증 검증
+   * @param email - 이메일 주소
+   * @param password - 비밀번호
+   * @returns 인증 성공 시 사용자 엔티티, 실패 시 null
+   */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.findByEmail(email);
     if (user && user.password && (await user.validatePassword(password))) {

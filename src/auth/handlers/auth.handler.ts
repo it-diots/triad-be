@@ -101,7 +101,7 @@ export class AuthHandler {
     try {
       const token = await this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.secret'),
-        expiresIn: this.configService.get<string>('jwt.expiresIn', '15m'),
+        expiresIn: '15m',
       });
 
       this.logger.debug(`액세스 토큰 생성 완료: sub=${String(payload.sub)}`);
@@ -125,7 +125,7 @@ export class AuthHandler {
     try {
       const token = await this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
-        expiresIn: this.configService.get<string>('jwt.refreshExpiresIn', '7d'),
+        expiresIn: '7d',
       });
 
       this.logger.debug(`리프레시 토큰 생성 완료: sub=${String(payload.sub)}`);
